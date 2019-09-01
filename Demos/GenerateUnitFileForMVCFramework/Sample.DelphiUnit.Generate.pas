@@ -44,6 +44,7 @@ type
     fFieldType: string;
     fAttributes: TStringList;
     fDescription: string;
+    fVisibility: TMemberVisibility;
   public
     constructor Create;
     destructor Destroy; override;
@@ -54,6 +55,7 @@ type
 
     property FieldName: string read fFieldName write fFieldName;
     property FieldType: string read fFieldType write fFieldType;
+    property Visibility: TMemberVisibility read fVisibility write fVisibility;
     property Description: string read fDescription write fDescription;
   end;
 
@@ -137,6 +139,9 @@ type
     function GetMethods: TArray<TUnitMethod>;
     function GenerateInterface: string;
     function GenerateForwardInterface: string;
+
+    procedure SortFields;
+    procedure SortMethods;
 
     property Guid: TGUID read fGuid write fGuid;
     property TypeName: string read fTypeName write fTypeName;
@@ -563,6 +568,9 @@ begin
       end;
     end;
 
+    SortFields;
+    SortMethods;
+
     for vFieldIndex := 0 to fFields.Count - 1 do
     begin
       vInterfaceList.Add(fFields[vFieldIndex].GenerateInterface);
@@ -591,6 +599,34 @@ begin
   begin
     Result[vMethodIndex] := fMethods[vMethodIndex];
   end;
+end;
+
+procedure TUnitTypeDefinition.SortFields;
+begin
+  fFields.Sort(TComparer<TUnitFieldDefinition>.Construct(
+  function(const vTypeA, vTypeB: TUnitFieldDefinition): Integer
+                        begin
+                          if vTypeA.Visibility = vTypeB.Visibility then
+                            Result := CompareText(vTypeA.FieldName, vTypeB.FieldName)
+                          else if vTypeA.Visibility > vTypeB.Visibility then
+                            Result := -1
+                          else
+                            Result := 1;
+                        end));
+end;
+
+procedure TUnitTypeDefinition.SortMethods;
+begin
+  fMethods.Sort(TComparer<TUnitMethod>.Construct(
+  function(const vTypeA, vTypeB: TUnitMethod): Integer
+                        begin
+                          if vTypeA.Visibility = vTypeB.Visibility then
+                            Result := CompareText(vTypeA.Name, vTypeB.Name)
+                          else if vTypeA.Visibility > vTypeB.Visibility then
+                            Result := -1
+                          else
+                            Result := 1;
+                        end));
 end;
 
 { TFieldDefinition }

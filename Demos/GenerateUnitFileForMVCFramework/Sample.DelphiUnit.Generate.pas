@@ -182,6 +182,8 @@ type
     procedure AddType(pTypeInfo: TUnitTypeDefinition);
     procedure SortTypeDefinitions;
 
+    procedure ClearTypes;
+
     property UnitFile: string read fUnitName write fUnitName;
     property UnitHasResourceFile: Boolean read fUnitHasResourceFile write fUnitHasResourceFile;
     property Title: string read fTitle write fTitle;
@@ -191,12 +193,15 @@ type
 
 implementation
 
+var
+  ReservedWords: TStringList;
+
 function DelphiVarName(const pVarName: string):string;
 begin
   Result := pVarName;
-  if Result.ToLower = 'type' then
+  if Result.ToLower = 'file' then
     Result := '&' + Result
-  else if Result.ToLower = 'file' then
+  else if ReservedWords.IndexOf(Result.ToLower) >= 0 then
     Result := '&' + Result;
 end;
 
@@ -244,6 +249,11 @@ end;
 procedure TDelphiUnit.AddType(pTypeInfo: TUnitTypeDefinition);
 begin
   fTypeDefinitions.Add(pTypeInfo);
+end;
+
+procedure TDelphiUnit.ClearTypes;
+begin
+  fTypeDefinitions.Clear;
 end;
 
 constructor TDelphiUnit.Create;
@@ -844,5 +854,22 @@ begin
   fAttributes.Add(pAttribute);
 end;
 
+initialization
+  ReservedWords := TStringList.Create;
+  ReservedWords.Add('type');
+  ReservedWords.Add('for');
+  ReservedWords.Add('var');
+  ReservedWords.Add('begin');
+  ReservedWords.Add('end');
+  ReservedWords.Add('function');
+  ReservedWords.Add('procedure');
+  ReservedWords.Add('class');
+  ReservedWords.Add('record');
+  ReservedWords.Add('string');
+  ReservedWords.Add('initialization');
+  ReservedWords.Add('finalization');
+
+finalization
+  FreeAndNil(ReservedWords);
 end.
 

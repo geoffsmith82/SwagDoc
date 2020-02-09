@@ -46,7 +46,7 @@ type
 
     function CapitalizeFirstLetter(const pTypeName: string): string;
     function RewriteUriToSwaggerWay(const pUri: string): string;
-    function OperationIdToFunctionName(pOperation: TSwagPathOperation): string;
+    function OperationIdToFunctionName(pOperation: TSwagPathOperation; pUrl:string): string;
     function GenerateUnitText(pDelphiUnit: TDelphiUnit): string;
     function ConvertSwaggerTypeToDelphiType(pSwaggerType: TSwagRequestParameter): TUnitTypeDefinition;
     function ConvertRefToType(const pRef: string): string;
@@ -76,9 +76,13 @@ begin
   fSwagDoc := pSwagDoc;
 end;
 
-function TSwagDocToDelphiRESTClientBuilder.OperationIdToFunctionName(pOperation: TSwagPathOperation): string;
+function TSwagDocToDelphiRESTClientBuilder.OperationIdToFunctionName(pOperation: TSwagPathOperation; pUrl:string): string;
 begin
   Result := pOperation.OperationId.Replace('{','').Replace('}','').Replace('-','');
+  if Result.Length = 0 then
+  begin
+    Result := pOperation.OperationToString + pUrl.Replace('/','').Replace('{','').Replace('}','');
+  end;
   if not CharInSet(Result[1], ['a'..'z','A'..'Z']) then
     Result := 'F' + Result;
 
@@ -170,7 +174,7 @@ begin
           vMethod.AddAttribute('    [MVCDoc(' + QuotedStr(fSwagDoc.Paths[vPathIndex].Operations[vOperationIndex].Description) + ')]');
         vMethod.AddAttribute('    [MVCPath(''' + fSwagDoc.Paths[vPathIndex].Uri + ''')]');
         vMethod.AddAttribute('    [MVCHTTPMethod([http' + fSwagDoc.Paths[vPathIndex].Operations[vOperationIndex].OperationToString + '])]');
-        vMethod.Name := OperationIdToFunctionName(fSwagDoc.Paths[vPathIndex].Operations[vOperationIndex]);
+        vMethod.Name := OperationIdToFunctionName(fSwagDoc.Paths[vPathIndex].Operations[vOperationIndex], fSwagDoc.Paths[vPathIndex].Uri);
 
         for vParameterIndex := 0 to fSwagDoc.Paths[vPathIndex].Operations[vOperationIndex].Parameters.Count - 1 do
         begin

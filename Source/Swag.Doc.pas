@@ -82,6 +82,7 @@ type
     procedure SaveSwaggerJsonToFile;
 
     procedure LoadFromFile(const pFilename: string);
+    procedure LoadFromStream(const pStream: TStream);
 
     property SwaggerFilesFolder: string read fSwaggerFilesFolder write SetSwaggerFilesFolder;
     property SwaggerJson: TJSONValue read fSwaggerJson;
@@ -365,6 +366,18 @@ begin
   vFileLoader := TSwagFileLoader.Create(Self);
   try
     vFileLoader.Load(pFilename);
+  finally
+    vFileLoader.Free;
+  end;
+end;
+
+procedure TSwagDoc.LoadFromStream(const pStream: TStream);
+var
+  vFileLoader: TSwagFileLoader;
+begin
+  vFileLoader := TSwagFileLoader.Create(Self);
+  try
+    vFileLoader.Load(pStream);
   finally
     vFileLoader.Free;
   end;

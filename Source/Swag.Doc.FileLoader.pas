@@ -26,7 +26,9 @@ unit Swag.Doc.FileLoader;
 interface
 
 uses
-  Swag.Doc;
+   Swag.Doc
+  , System.Classes
+  ;
 
 type
   TSwagFileLoader = class(TObject)
@@ -34,7 +36,8 @@ type
     fSwagDoc: TSwagDoc;
   public
     constructor Create(pSwagDocTarget: TSwagDoc);
-    procedure Load(const pFilename: string);
+    procedure Load(const pFilename: string); overload;
+    procedure Load(const pStream: TStream); overload;
   end;
 
 implementation
@@ -44,7 +47,6 @@ uses
   System.Generics.Collections,
   System.JSON,
   System.IOUtils,
-  System.Classes,
   Swag.Common.Types,
   Swag.Common.Types.Helpers,
   Swag.Doc.Path,
@@ -63,6 +65,21 @@ begin
 end;
 
 procedure TSwagFileLoader.Load(const pFilename: string);
+var
+  fs : TFileStream;
+begin
+  if not FileExists(pFilename) then
+    raise ESwagErrorLoadSwaggerJsonFile.Create('File doesn''t exist ['+pFilename+']');
+
+  fs := TFileStream.Create(pFilename, fmOpenRead);
+  try
+    Load(fs);
+  finally
+    FreeAndNil(fs);
+  end;
+end;
+
+procedure TSwagFileLoader.Load(const pStream: TStream);
 var
   vSwaggerJson: TJSONValue;
   vJsonObj: TJSONObject;
@@ -83,14 +100,20 @@ var
   vSecurityDefinition: TSwagSecurityDefinition;
   vJsonExternalDocs: TJSONObject;
   vIndex: Integer;
+  vSwaggerBytes : TBytes;
 begin
-  if not FileExists(pFilename) then
-    raise ESwagErrorLoadSwaggerJsonFile.Create('File doesn''t exist ['+pFilename+']');
+  pStream.Position := 0;
+  if pStream.Size > 0 then
+  begin
+    SetLength(vSwaggerBytes, pStream.Size);
+    pStream.Read(vSwaggerBytes, pStream.Size);
+  end;
 
-  vSwaggerJson := TJSONObject.ParseJSONValue(TFile.ReadAllText(pFilename)) as TJSONObject;
+  vSwaggerJson := TJSONObject.ParseJSONValue(TEncoding.ASCII.GetString(vSwaggerBytes)) as TJSONObject;
+
   try
     if not Assigned(vSwaggerJson) then
-      raise ESwagErrorLoadSwaggerJsonFile.Create('File could not be loaded ['+pFilename+']');
+      raise ESwagErrorLoadSwaggerJsonFile.Create('Stream could not be loaded');
 
     fSwagDoc.Info.Load((vSwaggerJson as TJSONObject).Values[c_SwagInfo] as TJSONObject);
 

@@ -147,21 +147,6 @@ begin
     vMVCControllerClient.TypeInherited := 'TObject';
     vMVCControllerClient.AddAttribute('  [MVCPath(''' + RewriteUriToSwaggerWay(fSwagDoc.BasePath) + ''')]');
 
-    vField := TUnitFieldDefinition.Create;
-    vField.FieldName := 'RESTClient';
-    vField.FieldType := 'TRESTClient';
-    vMVCControllerClient.Fields.Add(vField);
-
-    vField := TUnitFieldDefinition.Create;
-    vField.FieldName := 'RESTRequest';
-    vField.FieldType := 'TRESTRequest';
-    vMVCControllerClient.Fields.Add(vField);
-
-    vField := TUnitFieldDefinition.Create;
-    vField.FieldName := 'RESTResponse';
-    vField.FieldType := 'TRESTResponse';
-    vMVCControllerClient.Fields.Add(vField);
-
     vDelphiUnit.AddType(vMVCControllerClient);
     ConvertSwaggerDefinitionsToTypeDefinitions(vDelphiUnit);
 

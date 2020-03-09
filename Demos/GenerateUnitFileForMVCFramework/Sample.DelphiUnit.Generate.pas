@@ -91,6 +91,7 @@ type
     fContent: TStringList;
 
     procedure ParametersToDelphiString(var pParamString: string; pIncludeAttributes: Boolean);
+    function ParametersToDelphiSignature: string;
     procedure MethodLocalVarsToDelphiString(pFuncSL: TStringList);
 
     function MethodKindToDelphiString(var pHasReturn: Boolean): string;
@@ -107,6 +108,7 @@ type
     function GetParameters: TArray<TUnitParameter>;
     function GenerateInterface: string;
     function GenerateImplementation(pOnType: TUnitTypeDefinition): string;
+    function Signature: string;
 
     property Content: TStringList read fContent write fContent;
     property MethodKind: TMethodKind read fMethodKind write fMethodKind;
@@ -723,8 +725,51 @@ begin
     pParamString := '';
 end;
 
+function TUnitMethod.ParametersToDelphiSignature: string;
+var
+  vParam: TUnitParameter;
+  vParamFlagString: string;
+  pParamString: string;
+begin
+  pParamString := '(';
+  for vParam in GetParameters do
+  begin
+    vParamFlagString := '';
+    if pfConst in vParam.Flags then
+      vParamFlagString := 'const'
+    else if pfVar in vParam.Flags then
+      vParamFlagString := 'var'
+    else if pfOut in vParam.Flags then
+      vParamFlagString := 'out'
+    else if pfArray in vParam.Flags then
+      vParamFlagString := 'array of';
+    if vParamFlagString.Length > 0 then
+      vParamFlagString := vParamFlagString + ' ';
+
+    pParamString := pParamString + vParamFlagString + ': ' + vParam.ParamType.TypeName + '; ';
+  end;
+  if pParamString.EndsWith('; ') then
+    pParamString := pParamString.Remove(pParamString.Length - 2);
+  pParamString := pParamString + ')';
+  if pParamString = '()' then
+    pParamString := '';
+
+  Result := pParamString;
+end;
+
+function TUnitMethod.Signature: string;
+var
+  vHasReturn : Boolean;
+begin
+  Result := MethodKindToDelphiString(vHasReturn) + Name;
+  Result := Result + ParametersToDelphiSignature;
+  Result := Result.ToLower;  // Delphi is case insensitive
+end;
+
 function TUnitMethod.MethodKindToDelphiString(var pHasReturn: Boolean): string;
 begin
+  pHasReturn := False;
+
   case MethodKind of
     mkProcedure:
       Result := 'procedure';

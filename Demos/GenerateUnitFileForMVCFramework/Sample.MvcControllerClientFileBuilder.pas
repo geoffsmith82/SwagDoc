@@ -100,15 +100,15 @@ end;
 
 function TSwagDocToDelphiRESTClientBuilder.ConvertRefToType(const pRef: string): string;
 begin
-  Result := Copy(pRef, pRef.LastIndexOf('/') + 2);
-  Result := Copy(Result,1,1).ToUpper + Copy(Result,2);
+  Result := pRef.Replace('/','').Replace('#','').Replace('.','');
+  Result := Copy(Result, 1, 1).ToUpper + Copy(Result,2).Replace('-', '');
   if Result.ToLower <> 'string' then
     Result := 'T' + Result;
 end;
 
 function TSwagDocToDelphiRESTClientBuilder.ConvertRefToVarName(const pRef: string): string;
 begin
-  Result := Copy(pRef, pRef.LastIndexOf('/') + 2);
+  Result := Copy(pRef, pRef.LastIndexOf('/') + 2).Replace('-', '');
 end;
 
 function TSwagDocToDelphiRESTClientBuilder.Generate: string;
@@ -135,8 +135,6 @@ begin
     vDelphiUnit.AddInterfaceUnit('MVCFramework');
     vDelphiUnit.AddInterfaceUnit('MVCFramework.Commons');
     vDelphiUnit.AddImplementationUnit('Swag.Doc');
-
-    ConvertSwaggerDefinitionsToTypeDefinitions(vDelphiUnit);
 
     vMVCControllerClient := TUnitTypeDefinition.Create;
     vMVCControllerClient.TypeName := 'TMyMVCControllerClient';
@@ -167,7 +165,7 @@ begin
       begin
         vMethod := TUnitMethod.Create;
         if fSwagDoc.Paths[vPathIndex].Operations[vOperationIndex].Description.Trim.Length > 0 then
-          vMethod.AddAttribute('    [MVCDoc(' + QuotedStr(fSwagDoc.Paths[vPathIndex].Operations[vOperationIndex].Description) + ')]');
+          vMethod.AddAttribute('    [MVCDoc(' + SafeDescription(fSwagDoc.Paths[vPathIndex].Operations[vOperationIndex].Description) + ')]');
         vMethod.AddAttribute('    [MVCPath(''' + fSwagDoc.Paths[vPathIndex].Uri + ''')]');
         vMethod.AddAttribute('    [MVCHTTPMethod([http' + fSwagDoc.Paths[vPathIndex].Operations[vOperationIndex].OperationToString + '])]');
         vMethod.Name := OperationIdToFunctionName(fSwagDoc.Paths[vPathIndex].Operations[vOperationIndex]);
@@ -224,8 +222,6 @@ begin
       end;
     end;
 
-    vDelphiUnit.SortTypeDefinitions;
-
     Result := GenerateUnitText(vDelphiUnit);
   finally
     vDelphiUnit.Free;
@@ -241,7 +237,7 @@ begin
   if Assigned(((pJson.JsonValue as TJSONObject).Values['items'] as TJSONObject).Values['type']) then
   begin
     vType := ((pJson.JsonValue as TJSONObject).Values['items'] as TJSONObject).Values['type'].Value;
-    if vType.ToLower <> 'string' then
+    if (vType.ToLower <> 'string') and (vType.ToLower <> 'integer') then
       vType := 'T' + vType;
     pField.FieldType := 'array of ' + vType;
   end
@@ -315,7 +311,7 @@ begin
   for DefinitionIndex := 0 to fSwagDoc.Definitions.Count - 1 do
   begin
     vTypeInfo := TUnitTypeDefinition.Create;
-    vTypeInfo.TypeName := 'T' + CapitalizeFirstLetter(fSwagDoc.Definitions[DefinitionIndex].Name);
+    vTypeInfo.TypeName := 'TDefinitions' + CapitalizeFirstLetter(fSwagDoc.Definitions[DefinitionIndex].Name);
     vJsonProps := fSwagDoc.Definitions[DefinitionIndex].JsonSchema.Values['properties'] as TJSONObject;
     for vJsonPropIndex := 0 to vJsonProps.Count - 1 do
     begin
@@ -342,7 +338,7 @@ begin
       if vTypeObj.TryGetValue('description', vValue) then
       begin
         if vValue.Trim.Length > 0 then
-          vFieldInfo.AddAttribute('[MVCDoc(' + QuotedStr(vValue) + ')]');
+          vFieldInfo.AddAttribute('[MVCDoc(' + SafeDescription(vValue) + ')]');
       end;
       if vTypeObj.TryGetValue('format', vValue) then
       begin
@@ -381,7 +377,9 @@ begin
         begin
           if Assigned(pSwaggerType.Schema.JsonSchema.Values['items']) then
             if Assigned((pSwaggerType.Schema.JsonSchema.Values['items'] as TJSONObject).Values['$ref']) then
-              Result.TypeName := 'array of ' + ConvertRefToType((pSwaggerType.Schema.JsonSchema.Values['items'] as TJSONObject).Values['$ref'].Value);
+              Result.TypeName := 'array of ' + ConvertRefToType((pSwaggerType.Schema.JsonSchema.Values['items'] as TJSONObject).Values['$ref'].Value)
+            else if Assigned((pSwaggerType.Schema.JsonSchema.Values['items'] as TJSONObject).Values['type']) then  // fixes missing array types
+              Result.TypeName := 'array of ' + (pSwaggerType.Schema.JsonSchema.Values['items'] as TJSONObject).Values['type'].Value
         end;
       end;
     end;

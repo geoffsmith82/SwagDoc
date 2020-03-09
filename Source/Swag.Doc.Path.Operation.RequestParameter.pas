@@ -51,7 +51,8 @@ type
     fDefault: string;
     fEnum: TStringList;
     fAllowEmptyValue: Boolean;
-    procedure SetAllowEmptyValue(const Value: Boolean);
+    fRef: string;
+    procedure SetAllowEmptyValue(const pValue: Boolean);
   protected
     function ReturnInLocationToString: string;
   public
@@ -128,6 +129,8 @@ type
     property Enum: TStringList read fEnum;
 
     property AllowEmptyValue: Boolean read fAllowEmptyValue write SetAllowEmptyValue;
+
+    property Ref: string read fRef write fRef;
   end;
 
 implementation
@@ -149,6 +152,7 @@ const
   c_SwagRequestParameterFormat = 'format';
   c_SwagRequestParameterEnum = 'enum';
   c_SwagRequestParameterAllowEmptyValue = 'allowEmptyValue';
+  c_SwagRequestParameterRef = '$ref';
 
 { TSwagRequestParameter }
 
@@ -170,9 +174,17 @@ function TSwagRequestParameter.GenerateJsonObject: TJSONObject;
 var
   vJsonObject: TJsonObject;
   vJsonEnum: TJSONArray;
-  i: Integer;
+  vIndex: Integer;
 begin
   vJsonObject := TJsonObject.Create;
+
+  if fRef.Length > 0 then
+  begin
+    vJsonObject.AddPair('$ref', fRef);
+    Result := vJsonObject;
+    Exit;
+  end;
+
   vJsonObject.AddPair(c_SwagRequestParameterIn, ReturnInLocationToString);
   vJsonObject.AddPair(c_SwagRequestParameterName, fName);
   if not fDescription.IsEmpty then
@@ -193,7 +205,7 @@ begin
     if (not fSchema.Name.IsEmpty) then
       vJsonObject.AddPair(c_SwagRequestParameterSchema, fSchema.GenerateJsonRefDefinition)
     else if Assigned(fSchema.JsonSchema) then
-      vJsonObject.AddPair(c_SwagRequestParameterSchema, fSchema.JsonSchema.Clone as TJSONObject);
+      vJsonObject.AddPair(c_SwagRequestParameterSchema, fSchema.JsonSchema as TJSONObject);
   end;
   if (fTypeParameter <> stpNotDefined) then
     vJsonObject.AddPair(c_SwagRequestParameterType, c_SwagTypeParameter[fTypeParameter]);
@@ -204,9 +216,9 @@ begin
   if fEnum.Count > 0 then
   begin
     vJsonEnum := TJSONArray.Create;
-    for i := 0 to fEnum.Count - 1 do
+    for vIndex := 0 to fEnum.Count - 1 do
     begin
-      vJsonEnum.Add(fEnum[i]);
+      vJsonEnum.Add(fEnum[vIndex]);
     end;
     vJsonObject.AddPair(c_SwagRequestParameterEnum, vJsonEnum);
   end;
@@ -216,14 +228,20 @@ end;
 
 procedure TSwagRequestParameter.Load(pJson: TJSONObject);
 var
- vEnum : TJSONArray;
+  vEnum: TJSONArray;
   i: Integer;
 begin
+  if Assigned(pJson.Values[c_SwagRequestParameterRef]) then
+  begin
+    fRef := pJson.Values[c_SwagRequestParameterRef].Value;
+    Exit;
+  end;
+
   if Assigned(pJson.Values[c_SwagRequestParameterIn]) then
     fInLocation.ToType(pJson.Values[c_SwagRequestParameterIn].Value);
 
   if Assigned(pJson.Values[c_SwagRequestParameterAllowEmptyValue]) and
-             ((fInLocation = rpiQuery) or (fInLocation = rpiFormData)) then
+    ((fInLocation = rpiQuery) or (fInLocation = rpiFormData)) then
     fAllowEmptyValue := (pJson.Values[c_SwagRequestParameterAllowEmptyValue] as TJSONBool).AsBoolean;
 
   if Assigned(pJson.Values[c_SwagRequestParameterRequired]) then
@@ -250,7 +268,7 @@ begin
     fDefault := pJson.Values[c_SwagRequestParameterDefault].Value;
 
   if Assigned(pJson.Values[c_SwagRequestParameterSchema]) then
-    fSchema.JsonSchema := pJson.Values[c_SwagRequestParameterSchema] as TJSONObject;
+    fSchema.JsonSchema := pJson.Values[c_SwagRequestParameterSchema].Clone as TJSONObject;
 
   if Assigned(pJson.Values['items']) then
     fItems := pJson.Values['items'] as TJSONObject;
@@ -263,7 +281,6 @@ begin
       fEnum.Add(vEnum.Items[i].Value);
     end;
   end;
-
 end;
 
 function TSwagRequestParameter.ReturnInLocationToString: string;
@@ -271,10 +288,10 @@ begin
   Result := c_SwagRequestParameterInLocation[fInLocation];
 end;
 
-procedure TSwagRequestParameter.SetAllowEmptyValue(const Value: Boolean);
+procedure TSwagRequestParameter.SetAllowEmptyValue(const pValue: Boolean);
 begin
   if (fInLocation = rpiQuery) or (fInLocation = rpiFormData) then
-    fAllowEmptyValue := Value
+    fAllowEmptyValue := pValue
   else
     raise Exception.Create('allowEmptyValue not allowed to be set on ' + ReturnInLocationToString);
 end;

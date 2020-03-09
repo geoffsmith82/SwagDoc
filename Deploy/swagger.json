@@ -43,13 +43,13 @@
     {
       "get":
       {
-        "description":"Returns a employee list.",
-        "operationId":"{A9A8D343-00EB-402A-8248-94BDA7B6ECD4}",
         "tags":
         [
           "API Employee"
         ]
 ,
+        "description":"Returns a employee list.",
+        "operationId":"{A9A8D343-00EB-402A-8248-94BDA7B6ECD4}",
         "responses":
         {
           "200":
@@ -75,7 +75,8 @@
                         "description":"Employee request data",
                         "required":
                         [
-                          "name"
+                          "name",
+                          "gender"
                         ]
 ,
                         "properties":
@@ -111,6 +112,17 @@
                           {
                             "type":"number",
                             "description":"The employee gross salary."
+                          }
+,
+                          "gender":
+                          {
+                            "type":"string",
+                            "description":"The employee gender.",
+                            "enum":
+                            [
+                              "male",
+                              "female"
+                            ]
                           }
 ,
                           "address":
@@ -163,13 +175,13 @@
 ,
       "post":
       {
-        "description":"Creates a employee.",
-        "operationId":"{C450E1E0-341D-4947-A156-9C167BE021D5}",
         "tags":
         [
           "API Employee"
         ]
 ,
+        "description":"Creates a employee.",
+        "operationId":"{C450E1E0-341D-4947-A156-9C167BE021D5}",
         "parameters":
         [
                     {
@@ -199,7 +211,8 @@
                   "description":"Employee request data",
                   "required":
                   [
-                    "name"
+                    "name",
+                    "gender"
                   ]
 ,
                   "properties":
@@ -235,6 +248,17 @@
                     {
                       "type":"number",
                       "description":"The employee gross salary."
+                    }
+,
+                    "gender":
+                    {
+                      "type":"string",
+                      "description":"The employee gender.",
+                      "enum":
+                      [
+                        "male",
+                        "female"
+                      ]
                     }
 ,
                     "address":
@@ -287,13 +311,13 @@
     {
       "get":
       {
-        "description":"Returns a employee.",
-        "operationId":"{2DDE05B6-C01A-4EB8-B7CD-2041C51C97C7}",
         "tags":
         [
           "API Employee"
         ]
 ,
+        "description":"Returns a employee.",
+        "operationId":"{2DDE05B6-C01A-4EB8-B7CD-2041C51C97C7}",
         "parameters":
         [
                     {
@@ -320,7 +344,8 @@
                   "description":"Employee request data",
                   "required":
                   [
-                    "name"
+                    "name",
+                    "gender"
                   ]
 ,
                   "properties":
@@ -356,6 +381,17 @@
                     {
                       "type":"number",
                       "description":"The employee gross salary."
+                    }
+,
+                    "gender":
+                    {
+                      "type":"string",
+                      "description":"The employee gender.",
+                      "enum":
+                      [
+                        "male",
+                        "female"
+                      ]
                     }
 ,
                     "address":
@@ -405,13 +441,13 @@
 ,
       "put":
       {
-        "description":"Updates a employee.",
-        "operationId":"{28E989FB-0225-40BD-A97E-8D1EA80D09AF}",
         "tags":
         [
           "API Employee"
         ]
 ,
+        "description":"Updates a employee.",
+        "operationId":"{28E989FB-0225-40BD-A97E-8D1EA80D09AF}",
         "parameters":
         [
                     {
@@ -449,7 +485,8 @@
                   "description":"Employee request data",
                   "required":
                   [
-                    "name"
+                    "name",
+                    "gender"
                   ]
 ,
                   "properties":
@@ -485,6 +522,17 @@
                     {
                       "type":"number",
                       "description":"The employee gross salary."
+                    }
+,
+                    "gender":
+                    {
+                      "type":"string",
+                      "description":"The employee gender.",
+                      "enum":
+                      [
+                        "male",
+                        "female"
+                      ]
                     }
 ,
                     "address":
@@ -534,13 +582,13 @@
 ,
       "delete":
       {
-        "description":"Deletes a employee.",
-        "operationId":"{F47F38F3-2B99-4481-AFDD-ECD89893FEA0}",
         "tags":
         [
           "API Employee"
         ]
 ,
+        "description":"Deletes a employee.",
+        "operationId":"{F47F38F3-2B99-4481-AFDD-ECD89893FEA0}",
         "parameters":
         [
                     {
@@ -570,7 +618,8 @@
       "description":"Employee response data",
       "required":
       [
-        "name"
+        "name",
+        "gender"
       ]
 ,
       "properties":
@@ -599,6 +648,17 @@
         {
           "type":"number",
           "description":"The employee gross salary."
+        }
+,
+        "gender":
+        {
+          "type":"string",
+          "description":"The employee gender.",
+          "enum":
+          [
+            "male",
+            "female"
+          ]
         }
 ,
         "address":

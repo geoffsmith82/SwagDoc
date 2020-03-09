@@ -41,13 +41,13 @@ type
   private
     fName: string;
     fJsonSchema: TJsonObject;
-    procedure SetName(const Value: string);
-    procedure SetJsonSchema(const Value: TJsonObject); overload;
+    procedure SetName(const pValue: string);
+    procedure SetJsonSchema(const pValue: TJsonObject);
     function GetJsonSchema: TJsonObject;
   public
+    destructor Destroy; override;
+
     function GenerateJsonRefDefinition: TJsonObject;
-    procedure SetJsonSchema(const Name:string; Value: TJsonSchema); overload;
-    procedure Load(pJson: TJSONObject);
     /// <summary>
     /// The schema name alias.
     /// </summary>
@@ -68,19 +68,21 @@ uses
 
 { TSwagDefinition }
 
+destructor TSwagDefinition.Destroy;
+begin
+  FreeAndNil(fJsonSchema);
+  inherited Destroy;
+end;
+
 function TSwagDefinition.GetJsonSchema: TJsonObject;
 begin
   Result := fJsonSchema;
 end;
 
-procedure TSwagDefinition.Load(pJson: TJSONObject);
+procedure TSwagDefinition.SetJsonSchema(const pValue: TJsonObject);
 begin
-  fJsonSchema := pJson;
-end;
-
-procedure TSwagDefinition.SetJsonSchema(const Value: TJsonObject);
-begin
-  fJsonSchema := Value.Clone as TJSONObject;
+  fJsonSchema := Value;
+  fJsonSchema.Owned := False;
 end;
 
 procedure TSwagDefinition.SetJsonSchema(const Name:string; Value: TJsonSchema);
@@ -92,9 +94,9 @@ begin
   fName := Name;
 end;
 
-procedure TSwagDefinition.SetName(const Value: string);
+procedure TSwagDefinition.SetName(const pValue: string);
 begin
-  fName := Value;
+  fName := pValue;
 end;
 
 function TSwagDefinition.GenerateJsonRefDefinition: TJsonObject;

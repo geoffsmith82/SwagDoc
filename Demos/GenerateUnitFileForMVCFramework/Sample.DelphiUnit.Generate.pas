@@ -137,6 +137,7 @@ type
     destructor Destroy; override;
 
     procedure AddAttribute(const pAttribute: string);
+    procedure AddMethod(const pMethod: TUnitMethod);
 
     function GetMethods: TArray<TUnitMethod>;
     function GenerateInterface: string;
@@ -492,6 +493,26 @@ end;
 
 { TTypeDefinition }
 
+procedure TUnitTypeDefinition.AddMethod(const pMethod: TUnitMethod);
+var
+  I : Integer;
+  vMatched : Boolean;
+  vMatchingMethod: TUnitMethod;
+begin
+  vMatched := False;
+  for I := 0 to fMethods.Count - 1 do
+  begin
+    vMatchingMethod := fMethods[i];
+    if (vMatchingMethod.Signature = pMethod.Signature) then
+    begin
+      vMatched := True;
+      break;
+    end;
+  end;
+
+  if (not vMatched) or (fMethods.Count = 0) then
+    fMethods.Add(pMethod);
+end;
 constructor TUnitTypeDefinition.Create;
 begin
   fAttributes := TStringList.Create;

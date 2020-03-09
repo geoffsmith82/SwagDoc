@@ -42,7 +42,8 @@ type
     fName: string;
     fJsonSchema: TJsonObject;
     procedure SetName(const pValue: string);
-    procedure SetJsonSchema(const pValue: TJsonObject);
+    procedure SetJsonSchema(const pValue: TJsonObject); overload;
+    procedure SetJsonSchema(const pName:string; pValue: TJsonSchema); overload;
     function GetJsonSchema: TJsonObject;
   public
     destructor Destroy; override;
@@ -81,17 +82,17 @@ end;
 
 procedure TSwagDefinition.SetJsonSchema(const pValue: TJsonObject);
 begin
-  fJsonSchema := Value;
+  fJsonSchema := pValue;
   fJsonSchema.Owned := False;
 end;
 
-procedure TSwagDefinition.SetJsonSchema(const Name:string; Value: TJsonSchema);
+procedure TSwagDefinition.SetJsonSchema(const pName:string; pValue: TJsonSchema);
 const
   c_SchemaRef = '$ref';
   c_PrefixDefinitionName = '#/definitions/';
 begin
-  fJsonSchema := Value.Clone.Root.ToJsonSchema;
-  fName := Name;
+  fJsonSchema := pValue.Clone.Root.ToJsonSchema;
+  fName := pName;
 end;
 
 procedure TSwagDefinition.SetName(const pValue: string);

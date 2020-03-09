@@ -64,7 +64,6 @@ type
 
     function GenerateJsonObject: TJSONObject; virtual; abstract;
     procedure Load(pJson: TJSONObject); virtual; abstract;
-    class function GetSecurityDefinitionClass(pJson: TJSONObject): TSwagSecurityDefinitionClass;
 
     /// <summary>
     /// A single security scheme definition, mapping a "name" to the scheme it defines.

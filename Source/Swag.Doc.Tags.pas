@@ -34,9 +34,6 @@ type
     fDescription: string;
     fUrl: string;
   public
-    property Description: string read fDescription write fDescription;
-    property Url: string read fUrl write FUrl;
-
     function GenerateJsonObject: TJSONObject;
     procedure Load(pJson: TJSONObject);
 

@@ -152,6 +152,35 @@ type
     property Methods: TObjectList<TUnitMethod> read fMethods;
   end;
 
+  TDelphiObjectNode = class
+  protected
+    fContainedObject : TUnitTypeDefinition;
+    fEdges : TObjectList<TDelphiObjectNode>;
+    fParents : TObjectList<TDelphiObjectNode>;
+    procedure DependencyResolve(pList: TObjectList<TDelphiObjectNode>; pNode: TDelphiObjectNode);
+  public
+    constructor Create(pType: TUnitTypeDefinition);
+    destructor Destroy; override;
+    procedure AddEdge(pNode: TDelphiObjectNode);
+  end;
+
+  TDelphiObjectNodeComparer = class(TComparer<TDelphiObjectNode>)
+    function Compare(const Left, Right: TDelphiObjectNode): Integer; override;
+  end;
+
+
+
+  TDelphiObjectList = class
+  private
+    fListOfTypes : TObjectList<TDelphiObjectNode>;
+    function FindNode(const pTypeName: string): TDelphiObjectNode;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure AddType(pType : TUnitTypeDefinition);
+    procedure OrderedList(pList : TObjectList<TUnitTypeDefinition>);
+  end;
+
   TDelphiUnit = class
   strict private
     fInterfaceUses: TStringList;
@@ -503,19 +532,24 @@ begin
 end;
 
 procedure TDelphiUnit.SortTypeDefinitions;
+var
+  vList : TDelphiObjectList;
+  vOrderedList : TObjectList<TUnitTypeDefinition>;
+  vDefinitionIndex: Integer;
 begin
-  { TODO : Make this much more advanced to handle dependency ordering of declarations }
+  vList := TDelphiObjectList.Create;
+  for vDefinitionIndex := 0 to fTypeDefinitions.Count - 1 do
+  begin
+    vList.AddType(fTypeDefinitions[vDefinitionIndex]);
+  end;
+  vOrderedList := TObjectList<TUnitTypeDefinition>.Create;
+   vList.OrderedList(vOrderedList);
+   fTypeDefinitions.Clear;
 
-  fTypeDefinitions.Sort(TComparer<TUnitTypeDefinition>.Construct(
-    function(const vTypeA, vTypeB: TUnitTypeDefinition): Integer
-    begin
-      if vTypeA.TypeName = 'TMyMVCController' then
-        Result := 1
-      else if vTypeB.TypeName = 'TMyMVCController' then
-        Result := -1
-      else
-        Result := CompareText(vTypeA.TypeName, vTypeB.TypeName);
-    end));
+  for vDefinitionIndex := 0 to vOrderedList.Count - 1 do
+  begin
+    fTypeDefinitions.Add(vOrderedList[vDefinitionIndex])
+  end;
 end;
 
 { TTypeDefinition }
@@ -540,6 +574,7 @@ begin
   if (not vMatched) or (fMethods.Count = 0) then
     fMethods.Add(pMethod);
 end;
+
 constructor TUnitTypeDefinition.Create;
 begin
   fAttributes := TStringList.Create;
@@ -942,6 +977,143 @@ end;
 procedure TUnitParameter.AddAttribute(const pAttribute: string);
 begin
   fAttributes.Add(pAttribute);
+end;
+
+{ TDelphiObjectList }
+
+procedure TDelphiObjectList.AddType(pType: TUnitTypeDefinition);
+var
+  vNode : TDelphiObjectNode;
+begin
+   vNode := TDelphiObjectNode.Create(pType);
+   fListOfTypes.Add(vNode);
+end;
+
+constructor TDelphiObjectList.Create;
+begin
+  fListOfTypes := TObjectList<TDelphiObjectNode>.Create;
+end;
+
+destructor TDelphiObjectList.Destroy;
+begin
+  FreeAndNil(fListOfTypes);
+  inherited;
+end;
+
+function TDelphiObjectList.FindNode(const inTypeName: string): TDelphiObjectNode;
+var
+  i : Integer;
+begin
+  Result := nil;
+  for i := 0 to fListOfTypes.Count-1 do
+  begin
+    OutputDebugString(PChar(fListOfTypes[i].FContainedObject.TypeName));
+    if (CompareText(inTypeName,fListOfTypes[i].FContainedObject.TypeName)=0) then
+    begin
+      Result := fListOfTypes[i];
+      Exit;
+    end;
+  end;
+end;
+
+procedure TDelphiObjectList.OrderedList(pList: TObjectList<TUnitTypeDefinition>);
+var
+  l, x, i : Integer;
+  typeName : string;
+  root : TDelphiObjectNode;
+  node : TDelphiObjectNode;
+  NodeObjList : TObjectList<TDelphiObjectNode>;
+  OrderedNodeObjList : TObjectList<TDelphiObjectNode>;
+begin
+  for l := 0 to fListOfTypes.Count - 1 do
+  begin
+    for x := 0 to fListOfTypes[l].FContainedObject.Fields.Count - 1 do
+    begin
+      typeName := fListOfTypes[l].FContainedObject.Fields[x].FieldType;
+      if typeName.StartsWith('array of ') then
+        typeName := Copy(typeName , 10);
+      if not fListOfTypes[l].FContainedObject.Fields[x].IsSimpleType then
+      begin
+        node := findNode(typeName);
+        if Assigned(node) then
+          fListOfTypes[l].AddEdge(node);
+      end;
+    end;
+  end;
+
+  pList.Clear;
+  NodeObjList := nil;
+  OrderedNodeObjList := nil;
+  root := nil;
+  try
+    NodeObjList := TObjectList<TDelphiObjectNode>.Create(TDelphiObjectNodeComparer.Create);
+    OrderedNodeObjList := TObjectList<TDelphiObjectNode>.Create;
+    for i := 0 to fListOfTypes.Count - 1 do
+    begin
+      NodeObjList.Add(fListOfTypes[i])
+    end;
+
+    NodeObjList.Sort;
+
+    for i:=0 to NodeObjList.Count - 1 do
+    begin
+      if(NodeObjList[i].FParents.Count = 0) then
+      begin
+        root := NodeObjList[i];
+        root.DependencyResolve(OrderedNodeObjList, root);
+      end;
+    end;
+
+    for i := 0 to OrderedNodeObjList.Count - 1 do
+    begin
+      pList.Add(OrderedNodeObjList[i].FContainedObject);
+    end;
+  finally
+    FreeAndNil(NodeObjList);
+    FreeAndNil(OrderedNodeObjList);
+  end;
+end;
+
+{ TDelphiObjectNode }
+
+procedure TDelphiObjectNode.AddEdge(pNode: TDelphiObjectNode);
+begin
+  FEdges.Add(pNode);
+  pNode.FParents.Add(self);
+end;
+
+constructor TDelphiObjectNode.Create(pType: TUnitTypeDefinition);
+begin
+  FContainedObject := pType;
+  FEdges := TObjectList<TDelphiObjectNode>.Create(false);
+  FParents := TObjectList<TDelphiObjectNode>.Create(false);
+end;
+
+destructor TDelphiObjectNode.Destroy;
+begin
+  FreeAndNil(FEdges);
+  FreeAndNil(FParents);
+  inherited;
+end;
+
+procedure TDelphiObjectNode.DependencyResolve(pList: TObjectList<TDelphiObjectNode>; pNode: TDelphiObjectNode);
+var
+  i : Integer;
+begin
+  for i := 0 to pNode.FEdges.Count - 1 do
+  begin
+   if (pList.IndexOf(pNode) < 0) then
+     begin
+       DependencyResolve(pList, pNode.FEdges[i]);
+     end;
+  end;
+  if (pList.IndexOf(pNode) < 0) then
+    pList.Add(pNode);
+end;
+
+function TDelphiObjectNodeComparer.Compare(const Left, Right: TDelphiObjectNode): Integer;
+begin
+  Result := Right.FParents.Count - Left.FParents.Count;
 end;
 
 end.

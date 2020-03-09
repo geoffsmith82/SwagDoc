@@ -227,15 +227,36 @@ type
     property License: string read fLicense write fLicense;
   end;
 
+function SafeDescription(const pDescription: string): string;
+
 implementation
 
+uses
+  System.IOUtils
+  ;
+
+function SafeDescription(const pDescription: string): string;
+begin
+  Result := QuotedStr(Trim(pDescription)).Replace(#13#10,'').Replace(#13,'').Replace(#10,'');
+end;
+
 function DelphiVarName(const pVarName: string):string;
+const
+  reservedWords : array [0.. 64] of string = ('and', 'array', 'as', 'asm', 'begin', 'case', 'class', 'const', 'constructor', 'destructor', 'dispinterface', 'div', 'do', 'downto', 'else', 'end', 'except', 'exports', 'file', 'finalization', 'finally', 'for', 'function', 'goto', 'if', 'implementation', 'in', 'inherited', 'initialization', 'inline', 'interface', 'is', 'label', 'library', 'mod', 'nil', 'not', 'object', 'of', 'or', 'out', 'packed', 'procedure', 'program', 'property', 'raise', 'record', 'repeat', 'resourcestring', 'set', 'shl', 'shr', 'string', 'then', 'threadvar', 'to', 'try', 'type', 'unit', 'until', 'uses', 'var', 'while', 'with', 'xor');
+var
+  i: Integer;
+  tmpVar: string;
 begin
   Result := pVarName;
-  if Result.ToLower = 'type' then
-    Result := '&' + Result
-  else if Result.ToLower = 'file' then
-    Result := '&' + Result;
+  tmpVar := pVarName.ToLower;
+  for i := 0 to Length(reservedWords) - 1 do
+  begin
+    if reservedWords[i] = tmpVar then
+    begin
+      Result := '&' + Result;
+      Break;
+    end;
+  end;
 end;
 
 { TDelphiUnit }
@@ -304,9 +325,26 @@ begin
     Result := True;
   end;
 end;
+
+
 procedure TDelphiUnit.AddType(pTypeInfo: TUnitTypeDefinition);
+var
+  vDefintionIndex: Integer;
+  vAdd : Boolean;
 begin
-  fTypeDefinitions.Add(pTypeInfo);
+  vAdd := True;
+  if fTypeDefinitions.Count > 0 then
+  begin
+    for vDefintionIndex := 0 to fTypeDefinitions.Count - 1 do
+    begin
+      if fTypeDefinitions[vDefintionIndex].TypeName = pTypeInfo.TypeName then
+        vAdd := False;
+    end;
+    if vAdd then
+      fTypeDefinitions.Add(pTypeInfo);
+  end
+  else
+    fTypeDefinitions.Add(pTypeInfo);
 end;
 
 constructor TDelphiUnit.Create;
@@ -316,7 +354,7 @@ begin
   fInterfaceVar := TStringList.Create;
   fImplementationConstant := TStringList.Create;
   fImplementationUses := TStringList.Create;
-  fTypeDefinitions := TObjectList<TUnitTypeDefinition>.Create;
+  fTypeDefinitions := TObjectList<TUnitTypeDefinition>.Create(false);
 end;
 
 destructor TDelphiUnit.Destroy;
@@ -327,7 +365,7 @@ begin
   FreeAndNil(fInterfaceVar);
   FreeAndNil(fImplementationConstant);
   FreeAndNil(fTypeDefinitions);
-  inherited Destroy;
+  inherited;
 end;
 
 function TDelphiUnit.GenerateImplementationConstants: string;
@@ -353,8 +391,8 @@ end;
 
 function TDelphiUnit.GenerateInterfaceVar: string;
 var
-  vVarList: TStringList;
-  vImpIndex: Integer;
+  vVarList : TStringList;
+  vImpIndex : Integer;
 begin
   vVarList := TStringList.Create;
   try
@@ -597,7 +635,7 @@ begin
   FreeAndNil(fAttributes);
   FreeAndNil(fFields);
   FreeAndNil(fMethods);
-  inherited Destroy;
+  inherited;
 end;
 
 procedure TUnitTypeDefinition.AddAttribute(const pAttribute: string);
@@ -623,9 +661,12 @@ var
 begin
   vInterfaceList := TStringList.Create;
   try
-    for vAttributeIndex := 0 to fAttributes.Count - 1 do
+    if Assigned(fAttributes) then
     begin
-      vInterfaceList.Add(fAttributes[vAttributeIndex]);
+      for vAttributeIndex := 0 to fAttributes.Count - 1 do
+      begin
+        vInterfaceList.Add(fAttributes[vAttributeIndex]);
+      end;
     end;
     if fTypeKind = tkClass then
     begin
@@ -650,7 +691,7 @@ begin
 
     for vFieldIndex := 0 to fFields.Count - 1 do
     begin
-      vInterfaceList.Add(fFields[vFieldIndex].GenerateInterface);
+      vInterfaceList.Add(TrimRight(fFields[vFieldIndex].GenerateInterface));
     end;
 
     for vFieldIndex := 0 to fMethods.Count - 1 do
@@ -711,9 +752,9 @@ begin
     end;
 
     if Description.Length > 0 then
-      vInterfaceList.Add('    [MVCDoc(' + QuotedStr(Description) + ')]');
+      vInterfaceList.Add('    [MVCDoc(' + SafeDescription(Description) + ')]');
 
-    vInterfaceList.Add('    ' + DelphiVarName(fFieldName + ' : ' + vType + ';'));
+    vInterfaceList.Add('    ' + DelphiVarName(fFieldName) + ' : ' + vType + ';');
     Result := vInterfaceList.Text;
   finally
     FreeAndNil(vInterfaceList);

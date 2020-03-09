@@ -30,6 +30,7 @@ uses
   System.Classes,
   System.Json,
   System.SysUtils,
+  System.StrUtils,
   System.Rtti,
   System.TypInfo,
   System.Generics.Collections,
@@ -51,6 +52,7 @@ type
     procedure AddAttribute(const pAttribute: string);
 
     function GenerateInterface: string;
+    function IsSimpleType: Boolean;
 
     property FieldName: string read fFieldName write fFieldName;
     property FieldType: string read fFieldType write fFieldType;
@@ -623,6 +625,11 @@ begin
   finally
     FreeAndNil(vInterfaceList);
   end;
+end;
+
+function TUnitFieldDefinition.IsSimpleType: Boolean;
+begin
+  Result := MatchText(FieldType, ['String', 'Boolean', 'Integer', 'LongInt', 'Int64', 'Single', 'Double', 'Float32', 'Float64']);
 end;
 
 { TUnitMethod }

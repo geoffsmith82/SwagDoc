@@ -185,6 +185,8 @@ type
     procedure AddImplementationUnit(const pFilename: string); virtual;
     procedure AddImplementationConstant(const pName: string; const pValue: string);
     procedure AddType(pTypeInfo: TUnitTypeDefinition);
+    function RemoveInterfaceUnit(const pFilename: string): Boolean; virtual;
+    function RemoveImplementationUnit(const pFilename: string): Boolean; virtual;
     procedure SortTypeDefinitions;
 
     property UnitFile: string read fUnitName write fUnitName;
@@ -224,6 +226,19 @@ begin
   end;
 end;
 
+function TDelphiUnit.RemoveImplementationUnit(const pFilename: string): Boolean;
+var
+  vInterfaceIndex : Integer;
+begin
+  Result := False;
+  vInterfaceIndex := fInterfaceUses.IndexOf(pFilename);
+  if vInterfaceIndex >= 0 then
+  begin
+    fInterfaceUses.Delete(vInterfaceIndex);
+    Result := True;
+  end;
+end;
+
 procedure TDelphiUnit.AddInterfaceVar(const pName: string; pTypeInfo: TUnitTypeDefinition);
 begin
   fInterfaceVar.AddPair(pName, pTypeInfo.TypeName);
@@ -236,16 +251,28 @@ end;
 
 procedure TDelphiUnit.AddInterfaceUnit(const pFilename: string);
 var
-  vImpIndex : Integer;
+  vInterfaceIndex : Integer;
 begin
-  vImpIndex := fImplementationUses.IndexOf(pFilename);
-  if vImpIndex >= 0 then
-    fImplementationUses.Delete(vImpIndex);
+  vInterfaceIndex := fImplementationUses.IndexOf(pFilename);
+  if vInterfaceIndex > 0 then
+    fImplementationUses.Delete(vInterfaceIndex);
 
   if fInterfaceUses.IndexOf(pFilename) < 0 then
     fInterfaceUses.Add(pFilename);
 end;
 
+function TDelphiUnit.RemoveInterfaceUnit(const pFilename: string): Boolean;
+var
+  vInterfaceIndex : Integer;
+begin
+  Result := False;
+  vInterfaceIndex := fImplementationUses.IndexOf(pFilename);
+  if vInterfaceIndex >= 0 then
+  begin
+    fImplementationUses.Delete(vInterfaceIndex);
+    Result := True;
+  end;
+end;
 procedure TDelphiUnit.AddType(pTypeInfo: TUnitTypeDefinition);
 begin
   fTypeDefinitions.Add(pTypeInfo);

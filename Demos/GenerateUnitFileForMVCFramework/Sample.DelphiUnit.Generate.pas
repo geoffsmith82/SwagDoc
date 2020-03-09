@@ -588,13 +588,14 @@ begin
   begin
     vList.AddType(fTypeDefinitions[vDefinitionIndex]);
   end;
+
   vOrderedList := TObjectList<TUnitTypeDefinition>.Create;
-   vList.OrderedList(vOrderedList);
-   fTypeDefinitions.Clear;
+  vList.OrderedList(vOrderedList);
+  fTypeDefinitions.Clear;
 
   for vDefinitionIndex := 0 to vOrderedList.Count - 1 do
   begin
-    fTypeDefinitions.Add(vOrderedList[vDefinitionIndex])
+    fTypeDefinitions.Add(vOrderedList[vDefinitionIndex]);
   end;
 end;
 
@@ -1049,15 +1050,14 @@ begin
   inherited;
 end;
 
-function TDelphiObjectList.FindNode(const inTypeName: string): TDelphiObjectNode;
+function TDelphiObjectList.FindNode(const pTypeName: string): TDelphiObjectNode;
 var
   i : Integer;
 begin
   Result := nil;
   for i := 0 to fListOfTypes.Count-1 do
   begin
-    OutputDebugString(PChar(fListOfTypes[i].FContainedObject.TypeName));
-    if (CompareText(inTypeName,fListOfTypes[i].FContainedObject.TypeName)=0) then
+    if (CompareText(pTypeName, fListOfTypes[i].FContainedObject.TypeName)=0) then
     begin
       Result := fListOfTypes[i];
       Exit;
@@ -1068,58 +1068,71 @@ end;
 procedure TDelphiObjectList.OrderedList(pList: TObjectList<TUnitTypeDefinition>);
 var
   l, x, i : Integer;
-  typeName : string;
-  root : TDelphiObjectNode;
-  node : TDelphiObjectNode;
-  NodeObjList : TObjectList<TDelphiObjectNode>;
-  OrderedNodeObjList : TObjectList<TDelphiObjectNode>;
+  vTypeName : string;
+  vRoot : TDelphiObjectNode;
+  vNode : TDelphiObjectNode;
+  vParam : TUnitParameter;
+  vNodeObjList : TObjectList<TDelphiObjectNode>;
+  vOrderedNodeObjList : TObjectList<TDelphiObjectNode>;
 begin
   for l := 0 to fListOfTypes.Count - 1 do
   begin
     for x := 0 to fListOfTypes[l].FContainedObject.Fields.Count - 1 do
     begin
-      typeName := fListOfTypes[l].FContainedObject.Fields[x].FieldType;
-      if typeName.StartsWith('array of ') then
-        typeName := Copy(typeName , 10);
+      vTypeName := fListOfTypes[l].FContainedObject.Fields[x].FieldType;
+      if vTypeName.StartsWith('array of ') then
+        vTypeName := Copy(vTypeName , 10);
       if not fListOfTypes[l].FContainedObject.Fields[x].IsSimpleType then
       begin
-        node := findNode(typeName);
-        if Assigned(node) then
-          fListOfTypes[l].AddEdge(node);
+        vNode := findNode(vTypeName);
+        if Assigned(vNode) then
+          fListOfTypes[l].AddEdge(vNode);
+      end;
+    end;
+    for x := 0 to fListOfTypes[l].fContainedObject.Methods.Count - 1 do
+    begin
+      for vParam in fListOfTypes[l].fContainedObject.Methods[x].GetParameters do
+      begin
+        vTypeName := vParam.ParamType.TypeName;
+        if vTypeName.StartsWith('array of ') then
+          vTypeName := Copy(vTypeName , 10);
+        vNode := FindNode(vTypeName);
+        if Assigned(vNode) then
+          fListOfTypes[l].AddEdge(vNode);
       end;
     end;
   end;
 
   pList.Clear;
-  NodeObjList := nil;
-  OrderedNodeObjList := nil;
-  root := nil;
+  vNodeObjList := nil;
+  vOrderedNodeObjList := nil;
+  vRoot := nil;
   try
-    NodeObjList := TObjectList<TDelphiObjectNode>.Create(TDelphiObjectNodeComparer.Create);
-    OrderedNodeObjList := TObjectList<TDelphiObjectNode>.Create;
+    vNodeObjList := TObjectList<TDelphiObjectNode>.Create(TDelphiObjectNodeComparer.Create);
+    vOrderedNodeObjList := TObjectList<TDelphiObjectNode>.Create(False);
     for i := 0 to fListOfTypes.Count - 1 do
     begin
-      NodeObjList.Add(fListOfTypes[i])
+      vNodeObjList.Add(fListOfTypes[i])
     end;
 
-    NodeObjList.Sort;
+    vNodeObjList.Sort;
 
-    for i:=0 to NodeObjList.Count - 1 do
+    for i := 0 to vNodeObjList.Count - 1 do
     begin
-      if(NodeObjList[i].FParents.Count = 0) then
+      if(vNodeObjList[i].FParents.Count = 0) then
       begin
-        root := NodeObjList[i];
-        root.DependencyResolve(OrderedNodeObjList, root);
+        vRoot := vNodeObjList[i];
+        vRoot.DependencyResolve(vOrderedNodeObjList, vRoot);
       end;
     end;
 
-    for i := 0 to OrderedNodeObjList.Count - 1 do
+    for i := 0 to vOrderedNodeObjList.Count - 1 do
     begin
-      pList.Add(OrderedNodeObjList[i].FContainedObject);
+      pList.Add(vOrderedNodeObjList[i].FContainedObject);
     end;
   finally
-    FreeAndNil(NodeObjList);
-    FreeAndNil(OrderedNodeObjList);
+    FreeAndNil(vNodeObjList);
+    FreeAndNil(vOrderedNodeObjList);
   end;
 end;
 

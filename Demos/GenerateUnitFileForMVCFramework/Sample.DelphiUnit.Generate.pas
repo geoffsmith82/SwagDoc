@@ -200,6 +200,8 @@ type
     constructor Create; virtual;
     destructor Destroy; override;
 
+    procedure SaveToFile(pFilename: string);
+
     function Generate: string;
     function GenerateInterfaceSectionStart: string; virtual;
     function GenerateInterfaceUses: string; virtual;
@@ -529,6 +531,12 @@ var
 begin
   System.SysUtils.CreateGuid(vGuid);
   Result := vGuid;
+end;
+
+procedure TDelphiUnit.SaveToFile(pFilename: string);
+begin
+  fUnitName := TPath.GetFileNameWithoutExtension(pFilename);
+  TFile.WriteAllText(pFilename, Generate);
 end;
 
 procedure TDelphiUnit.SortTypeDefinitions;

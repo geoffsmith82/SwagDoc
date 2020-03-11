@@ -1100,6 +1100,17 @@ begin
         if Assigned(vNode) then
           fListOfTypes[l].AddEdge(vNode);
       end;
+      if (fListOfTypes[l].fContainedObject.Methods[x].MethodKind = mkFunction) or
+         (fListOfTypes[l].fContainedObject.Methods[x].MethodKind = mkClassFunction) or
+         (fListOfTypes[l].fContainedObject.Methods[x].MethodKind = mkSafeFunction) then
+      begin
+        vTypeName := fListOfTypes[l].fContainedObject.Methods[x].ReturnType.TypeName;
+        if vTypeName.StartsWith('array of ') then
+          vTypeName := Copy(vTypeName , 10);
+        vNode := FindNode(vTypeName);
+        if Assigned(vNode) then
+          fListOfTypes[l].AddEdge(vNode);
+      end;
     end;
   end;
 

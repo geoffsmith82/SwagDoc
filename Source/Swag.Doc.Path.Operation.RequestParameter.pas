@@ -271,7 +271,9 @@ begin
     fSchema.JsonSchema := pJson.Values[c_SwagRequestParameterSchema].Clone as TJSONObject;
 
   if Assigned(pJson.Values['items']) then
-    fItems := pJson.Values['items'] as TJSONObject;
+    fItems := (pJson.Values['items'].Clone) as TJSONObject
+  else
+    fItems := nil;
 
   if Assigned(pJson.Values[c_SwagRequestParameterEnum]) then
   begin

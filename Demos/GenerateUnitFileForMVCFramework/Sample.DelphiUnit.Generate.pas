@@ -227,6 +227,10 @@ type
     property License: string read fLicense write fLicense;
   end;
 
+  TDelphiDPR = class(TDelphiUnit)
+
+  end;
+
 function SafeDescription(const pDescription: string): string;
 
 implementation

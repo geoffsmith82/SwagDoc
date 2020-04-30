@@ -40,17 +40,20 @@ uses
   Sample.DelphiUnit.Generate;
 
 type
-  TSwagDocToDelphiRESTClientBuilder = class(TObject)
+  TSwagDocToDelphiMVCControllerBuilder = class(TObject)
   strict private
     fSwagDoc: TSwagDoc;
 
     function CapitalizeFirstLetter(const pTypeName: string): string;
     function RewriteUriToSwaggerWay(const pUri: string): string;
     function OperationIdToFunctionName(pOperation: TSwagPathOperation): string;
+    function RewriteUriToDelphiMVCFrameworkWay(const pUri: string): string;
     function GenerateUnitText(pDelphiUnit: TDelphiUnit): string;
     function ConvertSwaggerTypeToDelphiType(pSwaggerType: TSwagRequestParameter): TUnitTypeDefinition;
+    function ConvertRefToExceptionType(const pRef: string): string;	
     function ConvertRefToType(const pRef: string): string;
     function ConvertRefToVarName(const pRef: string): string;
+    function MakeDelphiSafeVariableName(const pName: string): string;
 
     procedure ChildType(pDelphiUnit: TDelphiUnit; pJson: TJSONPair);
     procedure HandleArray(pField: TUnitFieldDefinition; pJson: TJSONPair);
@@ -70,13 +73,18 @@ uses
 
 { TSwagDocToDelphiMVCFrameworkBuilder }
 
-constructor TSwagDocToDelphiRESTClientBuilder.Create(pSwagDoc: TSwagDoc);
+constructor TSwagDocToDelphiMVCControllerBuilder.Create(pSwagDoc: TSwagDoc);
 begin
   inherited Create;
   fSwagDoc := pSwagDoc;
 end;
 
-function TSwagDocToDelphiRESTClientBuilder.OperationIdToFunctionName(pOperation: TSwagPathOperation): string;
+function TSwagDocToDelphiMVCControllerBuilder.RewriteUriToDelphiMVCFrameworkWay(const pUri: string): string;
+begin
+  Result := pUri.Replace('{','($').Replace('}',')');
+end;
+
+function TSwagDocToDelphiMVCControllerBuilder.OperationIdToFunctionName(pOperation: TSwagPathOperation): string;
 begin
   Result := pOperation.OperationId.Replace('{','').Replace('}','').Replace('-','');
   if not CharInSet(Result[1], ['a'..'z','A'..'Z']) then
@@ -85,12 +93,12 @@ begin
   Result := CapitalizeFirstLetter(Result);
 end;
 
-function TSwagDocToDelphiRESTClientBuilder.RewriteUriToSwaggerWay(const pUri: string): string;
+function TSwagDocToDelphiMVCControllerBuilder.RewriteUriToSwaggerWay(const pUri: string): string;
 begin
   Result := pUri.Replace('{','($').Replace('}',')');
 end;
 
-function TSwagDocToDelphiRESTClientBuilder.CapitalizeFirstLetter(const pTypeName: string): string;
+function TSwagDocToDelphiMVCControllerBuilder.CapitalizeFirstLetter(const pTypeName: string): string;
 begin
   if pTypeName.Length > 2 then
     Result := Copy(pTypeName, 1, 1).ToUpper + Copy(pTypeName, 2, pTypeName.Length - 1)
@@ -98,7 +106,13 @@ begin
     Result := pTypeName;
 end;
 
-function TSwagDocToDelphiRESTClientBuilder.ConvertRefToType(const pRef: string): string;
+function TSwagDocToDelphiMVCControllerBuilder.MakeDelphiSafeVariableName(const pName: string): string;
+begin
+  Result := pName.Replace('/', '').Replace('-', '').Replace('.', '')
+end;
+
+
+function TSwagDocToDelphiMVCControllerBuilder.ConvertRefToType(const pRef: string): string;
 begin
   Result := pRef.Replace('/','').Replace('#','').Replace('.','');
   Result := Copy(Result, 1, 1).ToUpper + Copy(Result,2).Replace('-', '');
@@ -106,55 +120,49 @@ begin
     Result := 'T' + Result;
 end;
 
-function TSwagDocToDelphiRESTClientBuilder.ConvertRefToVarName(const pRef: string): string;
+function TSwagDocToDelphiMVCControllerBuilder.ConvertRefToExceptionType(const pRef: string): string;
 begin
-  Result := Copy(pRef, pRef.LastIndexOf('/') + 2).Replace('-', '');
+  Result := pRef.Replace('/','').Replace('#','').Replace('.','');
+  Result := Copy(Result, 1, 1).ToUpper + Copy(Result,2).Replace('-', '');
+  if (Result.ToLower = 'string') or (Result.ToLower = 'integer') then
+    raise Exception.Create('A simple type can not be an exception');
+  Result := 'E' + Result;
 end;
 
-function TSwagDocToDelphiRESTClientBuilder.Generate: string;
+
+function TSwagDocToDelphiMVCControllerBuilder.ConvertRefToVarName(const pRef: string): string;
+begin
+  Result := Copy(pRef, pRef.LastIndexOf('/') + 2);
+end;
+
+function TSwagDocToDelphiMVCControllerBuilder.Generate: string;
 var
   vPathIndex: Integer;
   vOperationIndex: Integer;
   vParameterIndex: Integer;
   vDelphiUnit: TDelphiUnit;
   vMVCControllerClient: TUnitTypeDefinition;
+  vExceptionsFromClient: TUnitTypeDefinition;
   vMethod: TUnitMethod;
+  vParam : TUnitParameter;
   vResponse: TPair<string, TSwagResponse>;
   vSchemaObj: TJsonObject;
   vResultParam: TUnitParameter;
   vField: TUnitFieldDefinition;
   vRef: String;
+  vStatusCode : Integer;
 begin
   vDelphiUnit := TDelphiUnit.Create;
   try
     vDelphiUnit.UnitFile := 'UnitFilenameMvcControllerClient';
-    vDelphiUnit.AddInterfaceUnit('IPPeerClient');
-    vDelphiUnit.AddInterfaceUnit('REST.Client');
-    vDelphiUnit.AddInterfaceUnit('REST.Authenticator.OAuth');
-    vDelphiUnit.AddInterfaceUnit('REST.Types');
     vDelphiUnit.AddInterfaceUnit('MVCFramework');
     vDelphiUnit.AddInterfaceUnit('MVCFramework.Commons');
     vDelphiUnit.AddImplementationUnit('Swag.Doc');
 
     vMVCControllerClient := TUnitTypeDefinition.Create;
     vMVCControllerClient.TypeName := 'TMyMVCControllerClient';
-    vMVCControllerClient.TypeInherited := 'TObject';
-    vMVCControllerClient.AddAttribute('  [MVCPath(''' + RewriteUriToSwaggerWay(fSwagDoc.BasePath) + ''')]');
-
-    vField := TUnitFieldDefinition.Create;
-    vField.FieldName := 'RESTClient';
-    vField.FieldType := 'TRESTClient';
-    vMVCControllerClient.Fields.Add(vField);
-
-    vField := TUnitFieldDefinition.Create;
-    vField.FieldName := 'RESTRequest';
-    vField.FieldType := 'TRESTRequest';
-    vMVCControllerClient.Fields.Add(vField);
-
-    vField := TUnitFieldDefinition.Create;
-    vField.FieldName := 'RESTResponse';
-    vField.FieldType := 'TRESTResponse';
-    vMVCControllerClient.Fields.Add(vField);
+    vMVCControllerClient.TypeInherited := 'TMVCController';
+    vMVCControllerClient.AddAttribute('  [MVCPath(' + RewriteUriToDelphiMVCFrameworkWay(fSwagDoc.BasePath).QuotedString + ')]');
 
     vDelphiUnit.AddType(vMVCControllerClient);
     ConvertSwaggerDefinitionsToTypeDefinitions(vDelphiUnit);
@@ -166,8 +174,8 @@ begin
         vMethod := TUnitMethod.Create;
         if fSwagDoc.Paths[vPathIndex].Operations[vOperationIndex].Description.Trim.Length > 0 then
           vMethod.AddAttribute('    [MVCDoc(' + SafeDescription(fSwagDoc.Paths[vPathIndex].Operations[vOperationIndex].Description) + ')]');
-        vMethod.AddAttribute('    [MVCPath(''' + fSwagDoc.Paths[vPathIndex].Uri + ''')]');
-        vMethod.AddAttribute('    [MVCHTTPMethod([http' + fSwagDoc.Paths[vPathIndex].Operations[vOperationIndex].OperationToString + '])]');
+        vMethod.AddAttribute('    [MVCPath(' + RewriteUriToDelphiMVCFrameworkWay(fSwagDoc.Paths[vPathIndex].Uri).QuotedString + ')]');
+        vMethod.AddAttribute('    [MVCHTTPMethod([http' + fSwagDoc.Paths[vPathIndex].Operations[vOperationIndex].OperationToString.ToUpper + '])]');
         vMethod.Name := OperationIdToFunctionName(fSwagDoc.Paths[vPathIndex].Operations[vOperationIndex]);
 
         for vParameterIndex := 0 to fSwagDoc.Paths[vPathIndex].Operations[vOperationIndex].Parameters.Count - 1 do
@@ -187,15 +195,35 @@ begin
           begin
             vMethod.AddAttribute('    [MVCResponse(' + vResponse.Key + ', ' +
                                                    QuotedStr(vResponse.Value.Description) + ', ' + ConvertRefToType(vRef) + ')]');
-            vResultParam := TUnitParameter.Create;
-            vResultParam.ParamName := ConvertRefToVarName(vRef);
-            vResultParam.ParamType := TUnitTypeDefinition.Create;
-            vResultParam.ParamType.TypeName := ConvertRefToType(vRef);
-            vMethod.AddLocalVariable(vResultParam);
-            vMethod.Content.Add('  ' + ConvertRefToVarName(vRef) + ' := ' + ConvertRefToType(vRef) + '.Create;');
-//            method.Content.Add('  Render(' + response.Key + ', ' + ConvertRefToVarName(ref) + ');');
+            if TryStrToInt(vResponse.Key, vStatusCode) then
+            begin
+              if vStatusCode >= 300 then
+              begin
+                vExceptionsFromClient := TUnitTypeDefinition.Create;
+                vExceptionsFromClient.TypeName := ConvertRefToExceptionType(vRef);
+                vExceptionsFromClient.TypeInherited := 'Exception';
+                vDelphiUnit.AddType(vExceptionsFromClient);
+                vMethod.Content.Add('//  raise ' + vExceptionsFromClient.TypeName + '.Create(' + vStatusCode.ToString + ', ' + QuotedStr(vResponse.Value.Description) + ');');
+              end
+              else
+              begin
+                vResultParam := TUnitParameter.Create;
+                vResultParam.ParamName := ConvertRefToVarName(vRef);
+                vResultParam.ParamType := TUnitTypeDefinition.Create;
+                vResultParam.ParamType.TypeName := ConvertRefToType(vRef);
+                vMethod.AddLocalVariable(vResultParam);
+                vMethod.Content.Add('  ' + ConvertRefToVarName(vRef) + ' := ' + ConvertRefToType(vRef) + '.Create;');
+               for vParameterIndex := 0 to fSwagDoc.Paths[vPathIndex].Operations[vOperationIndex].Parameters.Count - 1 do
+                begin
+                  vMethod.Content.Add('  ' + MakeDelphiSafeVariableName(fSwagDoc.Paths[vPathIndex].Operations[vOperationIndex].Parameters[vParameterIndex].Name) + ' := Params[' + fSwagDoc.Paths[vPathIndex].Operations[vOperationIndex].Parameters[vParameterIndex].Name.QuotedString + '];');
+                end;
+                vMethod.Content.Add('');
+                vMethod.Content.Add('');
+                vMethod.Content.Add('  Render(' + vResultParam.ParamName + ');');
+              end;
+            end;
           end
-          else
+          else  // Swagger file is using an inline type definition for Response type
           begin
             if not vSchemaObj.TryGetValue('properties', vSchemaObj) then
               continue;
@@ -228,7 +256,7 @@ begin
   end;
 end;
 
-procedure TSwagDocToDelphiRESTClientBuilder.HandleArray(pField : TUnitFieldDefinition; pJson: TJSONPair);
+procedure TSwagDocToDelphiMVCControllerBuilder.HandleArray(pField : TUnitFieldDefinition; pJson: TJSONPair);
 var
   vJsonObj: TJSONObject;
   vJsonVal: TJSONValue;
@@ -254,7 +282,7 @@ begin
 end;
 
 
-procedure TSwagDocToDelphiRESTClientBuilder.ChildType(pDelphiUnit : TDelphiUnit; pJson: TJSONPair);
+procedure TSwagDocToDelphiMVCControllerBuilder.ChildType(pDelphiUnit : TDelphiUnit; pJson: TJSONPair);
 var
   vTypeInfo: TUnitTypeDefinition;
   vJsonProps: TJSONObject;
@@ -298,7 +326,7 @@ begin
   pDelphiUnit.AddType(vTypeInfo);
 end;
 
-procedure TSwagDocToDelphiRESTClientBuilder.ConvertSwaggerDefinitionsToTypeDefinitions(pDelphiUnit: TDelphiUnit);
+procedure TSwagDocToDelphiMVCControllerBuilder.ConvertSwaggerDefinitionsToTypeDefinitions(pDelphiUnit: TDelphiUnit);
 var
   vTypeInfo: TUnitTypeDefinition;
   vJsonProps: TJSONObject;
@@ -358,7 +386,7 @@ begin
   end;
 end;
 
-function TSwagDocToDelphiRESTClientBuilder.ConvertSwaggerTypeToDelphiType(pSwaggerType: TSwagRequestParameter): TUnitTypeDefinition;
+function TSwagDocToDelphiMVCControllerBuilder.ConvertSwaggerTypeToDelphiType(pSwaggerType: TSwagRequestParameter): TUnitTypeDefinition;
 var
   vSwaggerType: TSwagTypeParameter;
   vJson: TJSONObject;
@@ -409,7 +437,7 @@ begin
   end;
 end;
 
-function TSwagDocToDelphiRESTClientBuilder.GenerateUnitText(pDelphiUnit: TDelphiUnit): string;
+function TSwagDocToDelphiMVCControllerBuilder.GenerateUnitText(pDelphiUnit: TDelphiUnit): string;
 begin
   pDelphiUnit.Title := fSwagDoc.Info.Title;
   pDelphiUnit.Description := fSwagDoc.Info.Description;

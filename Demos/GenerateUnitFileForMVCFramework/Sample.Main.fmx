@@ -10,6 +10,7 @@ object Form1: TForm1
   DesignerMasterStyle = 0
   object TabControl1: TTabControl
     Align = Bottom
+    Anchors = [akLeft, akTop, akRight, akBottom]
     Position.Y = 40.000000000000000000
     Size.Width = 605.000000000000000000
     Size.Height = 645.000000000000000000

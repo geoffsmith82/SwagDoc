@@ -72,7 +72,7 @@ uses
 
 procedure TForm1.btnGenerateClientClick(Sender: TObject);
 var
-  vClientBuilder: TSwagDocToDelphiRESTClientBuilder;
+  vClientBuilder: TSwagDocToDelphiMVCControllerBuilder;
   vSwagDoc: TSwagDoc;
   vFilename: string;
 begin
@@ -81,7 +81,7 @@ begin
     vFilename := ExtractFilePath(ParamStr(0)) + 'Swagger.json';
     vSwagDoc.LoadFromFile(vFilename);
     memo1.Lines.Text := TFile.ReadAllText(vFilename);
-    vClientBuilder := TSwagDocToDelphiRESTClientBuilder.Create(vSwagDoc);
+    vClientBuilder := TSwagDocToDelphiMVCControllerBuilder.Create(vSwagDoc);
     try
       memo2.Lines.Text := vClientBuilder.Generate;
     finally

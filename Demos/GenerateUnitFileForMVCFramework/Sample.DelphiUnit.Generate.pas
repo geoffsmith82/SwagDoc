@@ -516,7 +516,7 @@ begin
   vUsesList := TStringList.Create;
   try
     if fUnitHasResourceFile then
-      vUsesList.Add('{$R *.dfm}');
+    vUsesList.Add('{$R *.dfm}');
     vUsesList.Add('');
     if fImplementationUses.Count > 0 then
     begin
@@ -543,7 +543,7 @@ var
 begin
   vInterfaceSectionList := TStringList.Create;
   try
-    vInterfaceSectionList.Add('unit ' + UnitFile + ';');
+    vInterfaceSectionList.Add('unit ' + TPath.GetFileNameWithoutExtension(UnitFile) + ';');
     vInterfaceSectionList.Add('');
     vInterfaceSectionList.Add('interface');
     vInterfaceSectionList.Add('');
@@ -599,7 +599,26 @@ begin
     vUnitFileList.Add('');
     vUnitFileList.Add('type');
 
-    SortTypeDefinitions;
+//    SortTypeDefinitions;
+
+    for vIndex := 0 to fTypeDefinitions.Count - 1 do
+    begin
+      if fTypeDefinitions[vIndex].ForwardDeclare then
+      begin
+        if not vForwardAlreadyDeclared then
+          vUnitFileList.Add('{ Forward Decls }');
+        vUnitFileList.Add(fTypeDefinitions[vIndex].GenerateForwardInterface);
+        vForwardAlreadyDeclared := True;
+      end;
+    end;
+
+    vUnitFileList.Add('');
+    vUnitFileList.Add('// Now the full declarations');
+
+    for vIndex := 0 to fTypeDefinitions.Count - 1 do
+    begin
+      vUnitFileList.Add(fTypeDefinitions[vIndex].GenerateInterface);
+    end;
 
     if fInterfaceConstant.Count > 0 then
     begin
@@ -610,22 +629,6 @@ begin
       end;
     end;
 
-    for vIndex := 0 to fTypeDefinitions.Count - 1 do
-    begin
-      if fTypeDefinitions[vIndex].ForwardDeclare then
-      begin
-        if not vForwardAlreadyDeclared then
-          vUnitFileList.Add('  // Forward Declarations');
-        vUnitFileList.Add(fTypeDefinitions[vIndex].GenerateForwardInterface);
-        vForwardAlreadyDeclared := True;
-      end;
-    end;
-
-    for vIndex := 0 to fTypeDefinitions.Count - 1 do
-    begin
-      vUnitFileList.Add(fTypeDefinitions[vIndex].GenerateInterface);
-    end;
-
     vUnitFileList.Add(GenerateInterfaceVar);
     vUnitFileList.Add('');
     vUnitFileList.Add('{ Global Functions }');
@@ -634,6 +637,7 @@ begin
     begin
       vUnitFileList.Add(fUnitMethods[vIndex].GenerateInterface(nil));
     end;
+
 
     vUnitFileList.Add(GenerateImplementationSectionStart);
     vUnitFileList.Add(GenerateImplementationUses);
@@ -647,8 +651,15 @@ begin
     begin
       vUnitFileList.Add(fUnitMethods[vIndex].GenerateImplementation(nil));
     end;
+
     for vIndex := 0 to fTypeDefinitions.Count - 1 do
     begin
+      if fTypeDefinitions[vIndex].TypeKind = tkInterface then
+        continue;
+
+      vUnitFileList.Add('');
+      vUnitFileList.Add('{ ' + fTypeDefinitions[vIndex].TypeName + ' }');
+      vUnitFileList.Add('');
       for vMethod in fTypeDefinitions[vIndex].GetMethods do
       begin
         vUnitFileList.Add(vMethod.GenerateImplementation(fTypeDefinitions[vIndex]));

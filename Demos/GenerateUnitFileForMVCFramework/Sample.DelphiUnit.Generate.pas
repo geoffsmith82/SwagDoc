@@ -181,7 +181,9 @@ type
     function GenerateInterface: string;
     function GenerateForwardInterface: string;
 
+    function GetMethodsByName(const pMethodName: string): TArray<TUnitMethod>;
     function LookupPropertyByName(const pTypeName: string): TUnitPropertyDefinition;
+
     property Guid: TGUID read fGuid write fGuid;
     property TypeName: string read fTypeName write fTypeName;
     property TypeKind: TTypeKind read fTypeKind write fTypeKind;
@@ -194,9 +196,9 @@ type
 
   TDelphiObjectNode = class
   protected
-    fContainedObject : TUnitTypeDefinition;
-    fEdges : TObjectList<TDelphiObjectNode>;
-    fParents : TObjectList<TDelphiObjectNode>;
+    FContainedObject : TUnitTypeDefinition;
+    FEdges : TObjectList<TDelphiObjectNode>;
+    FParents : TObjectList<TDelphiObjectNode>;
     procedure DependencyResolve(pList: TObjectList<TDelphiObjectNode>; pNode: TDelphiObjectNode);
   public
     constructor Create(pType: TUnitTypeDefinition);
@@ -234,13 +236,14 @@ type
     fLicense: string;
     fTypeDefinitions: TObjectList<TUnitTypeDefinition>;
     fUnitHasResourceFile: Boolean;
+    fUnitMethods : TObjectList<TUnitMethod>;
   private
     function GenerateInterfaceVar: string;
   public
     constructor Create; virtual;
     destructor Destroy; override;
 
-    procedure SaveToFile(pFilename: string);
+    procedure SaveToFile(const pFilename: string);
 
     function Generate: string;
     function GenerateInterfaceSectionStart: string; virtual;
@@ -258,6 +261,7 @@ type
     procedure AddUnitMethod(pMethod: TUnitMethod);
     function LookupUnitMethodByName(const pMethodName: string): TUnitMethod;
     procedure AddType(pTypeInfo: TUnitTypeDefinition);
+    function LookupTypeByName(const pTypeName: string): TUnitTypeDefinition;
     function RemoveInterfaceUnit(const pFilename: string): Boolean; virtual;
     function RemoveImplementationUnit(const pFilename: string): Boolean; virtual;
     procedure SortTypeDefinitions;
@@ -383,21 +387,11 @@ begin
   end;
 end;
 
-
 procedure TDelphiUnit.AddType(pTypeInfo: TUnitTypeDefinition);
-var
-  vDefintionIndex: Integer;
-  vAdd : Boolean;
 begin
-  vAdd := True;
   if fTypeDefinitions.Count > 0 then
   begin
-    for vDefintionIndex := 0 to fTypeDefinitions.Count - 1 do
-    begin
-      if fTypeDefinitions[vDefintionIndex].TypeName = pTypeInfo.TypeName then
-        vAdd := False;
-    end;
-    if vAdd then
+    if not Assigned(LookupTypeByName(pTypeInfo.TypeName)) then
       fTypeDefinitions.Add(pTypeInfo);
   end
   else
@@ -429,6 +423,23 @@ begin
     end;
   end;
 end;
+
+function TDelphiUnit.LookupTypeByName(const pTypeName: string): TUnitTypeDefinition;
+var
+  i : Integer;
+begin
+  Result := nil;
+  for i := 0 to fTypeDefinitions.Count - 1 do
+  begin
+    if fTypeDefinitions[i].TypeName = pTypeName then
+    begin
+      Result := fTypeDefinitions[i];
+      Exit;
+    end;
+  end;
+end;
+
+
 constructor TDelphiUnit.Create;
 begin
   fInterfaceUses := TStringList.Create;
@@ -599,7 +610,7 @@ begin
     vUnitFileList.Add('');
     vUnitFileList.Add('type');
 
-//    SortTypeDefinitions;
+    SortTypeDefinitions;
 
     for vIndex := 0 to fTypeDefinitions.Count - 1 do
     begin
@@ -680,7 +691,7 @@ begin
   Result := vGuid;
 end;
 
-procedure TDelphiUnit.SaveToFile(pFilename: string);
+procedure TDelphiUnit.SaveToFile(const pFilename: string);
 begin
   fUnitName := TPath.GetFileNameWithoutExtension(pFilename);
   TFile.WriteAllText(pFilename, Generate);
@@ -728,7 +739,10 @@ begin
   end;
 
   if (not vMatched) or (fMethods.Count = 0) then
+  begin
+    pMethod.ParentType := Self;
     fMethods.Add(pMethod);
+  end;
 end;
 
 constructor TUnitTypeDefinition.Create;
@@ -809,13 +823,14 @@ begin
 
     for vFieldIndex := 0 to fFields.Count - 1 do
     begin
-      vInterfaceList.Add(TrimRight(fFields[vFieldIndex].GenerateInterface));
+      vInterfaceList.Add(TrimRight(fFields[vFieldIndex].GenerateInterface(Self)));
     end;
 
     for vFieldIndex := 0 to fMethods.Count - 1 do
     begin
-      vInterfaceList.Add(TrimRight(fMethods[vFieldIndex].GenerateInterface));
-      vInterfaceList.Add('');
+      vInterfaceList.Add(TrimRight(fMethods[vFieldIndex].GenerateInterface(Self)));
+    end;
+
     for vFieldIndex := 0 to fProperties.Count - 1 do
     begin
       vInterfaceList.Add(TrimRight(fProperties[vFieldIndex].GenerateInterface(Self)));
@@ -837,6 +852,39 @@ begin
   for vMethodIndex := 0 to fMethods.Count - 1 do
   begin
     Result[vMethodIndex] := fMethods[vMethodIndex];
+  end;
+end;
+
+function TUnitTypeDefinition.GetMethodsByName(const pMethodName: string): TArray<TUnitMethod>;
+var
+  vMethodIndex : Integer;
+  idx : Integer;
+begin
+  Result := nil;
+  idx := 0;
+  for vMethodIndex := 0 to fMethods.Count - 1 do
+  begin
+    if fMethods[vMethodIndex].Name = pMethodName then
+    begin
+      SetLength(Result, idx + 1);
+      Result[idx] := fMethods[vMethodIndex];
+      Inc(idx);
+    end;
+  end;
+end;
+
+function TUnitTypeDefinition.LookupPropertyByName(const pTypeName: string): TUnitPropertyDefinition;
+var
+  i : Integer;
+begin
+  Result := nil;
+  for i := 0 to fProperties.Count - 1 do
+  begin
+    if fProperties[i].PropertyName = pTypeName then
+    begin
+      Result := fProperties[i];
+      Exit;
+    end;
   end;
 end;
 
@@ -990,9 +1038,9 @@ function TUnitMethod.ParametersToDelphiSignature: string;
 var
   vParam: TUnitParameter;
   vParamFlagString: string;
-  pParamString: string;
+  vParamString: string;
 begin
-  pParamString := '(';
+  vParamString := '(';
   for vParam in GetParameters do
   begin
     vParamFlagString := '';
@@ -1007,22 +1055,22 @@ begin
     if vParamFlagString.Length > 0 then
       vParamFlagString := vParamFlagString + ' ';
 
-    pParamString := pParamString + vParamFlagString + ': ' + vParam.ParamType.TypeName + '; ';
+    vParamString := vParamString + vParamFlagString + ': ' + vParam.ParamType.TypeName + '; ';
   end;
-  if pParamString.EndsWith('; ') then
-    pParamString := pParamString.Remove(pParamString.Length - 2);
-  pParamString := pParamString + ')';
-  if pParamString = '()' then
-    pParamString := '';
+  if vParamString.EndsWith('; ') then
+    vParamString := vParamString.Remove(vParamString.Length - 2);
+  vParamString := vParamString + ')';
+  if vParamString = '()' then
+    vParamString := '';
 
-  Result := pParamString;
+  Result := vParamString;
 end;
 
 function TUnitMethod.Signature: string;
 var
-  hasReturn : Boolean;
+  vHasReturn : Boolean;
 begin
-  Result := MethodKindToDelphiString(hasReturn) + Name;
+  Result := MethodKindToDelphiString(vHasReturn) + Name;
   Result := Result + ParametersToDelphiSignature;
   Result := Result.ToLower;  // Delphi is case insensitive
 end;
@@ -1204,7 +1252,8 @@ begin
   Result := nil;
   for i := 0 to fListOfTypes.Count-1 do
   begin
-    if (CompareText(pTypeName, fListOfTypes[i].FContainedObject.TypeName)=0) then
+    OutputDebugString(PChar(fListOfTypes[i].FContainedObject.TypeName));
+    if (CompareText(pTypeName,fListOfTypes[i].FContainedObject.TypeName)=0) then
     begin
       Result := fListOfTypes[i];
       Exit;
@@ -1221,9 +1270,32 @@ var
   vParam : TUnitParameter;
   vNodeObjList : TObjectList<TDelphiObjectNode>;
   vOrderedNodeObjList : TObjectList<TDelphiObjectNode>;
+  vInheritTypes:  TArray<string>;
 begin
   for l := 0 to fListOfTypes.Count - 1 do
   begin
+    // Handle object / interfaces inherited from
+    if Pos(',', fListOfTypes[l].FContainedObject.TypeInherited) < 0 then
+    begin
+      if fListOfTypes[l].FContainedObject.TypeInherited.Length > 0 then
+      begin
+        vNode := FindNode(fListOfTypes[l].FContainedObject.TypeInherited.Trim);
+        if Assigned(vNode) then
+          fListOfTypes[l].AddEdge(vNode);
+      end;
+    end
+    else
+    begin
+      vInheritTypes := fListOfTypes[l].FContainedObject.TypeInherited.Split([',']);
+      for x := 0 to Length(vInheritTypes) - 1 do
+      begin
+        vNode := FindNode(vInheritTypes[x].Trim);
+        if Assigned(vNode) then
+          fListOfTypes[l].AddEdge(vNode);
+      end;
+    end;
+
+    // Handle Field Types used
     for x := 0 to fListOfTypes[l].FContainedObject.Fields.Count - 1 do
     begin
       vTypeName := fListOfTypes[l].FContainedObject.Fields[x].FieldType;
@@ -1236,6 +1308,7 @@ begin
           fListOfTypes[l].AddEdge(vNode);
       end;
     end;
+    // Handle Types used in methods of class
     for x := 0 to fListOfTypes[l].fContainedObject.Methods.Count - 1 do
     begin
       for vParam in fListOfTypes[l].fContainedObject.Methods[x].GetParameters do
@@ -1247,6 +1320,7 @@ begin
         if Assigned(vNode) then
           fListOfTypes[l].AddEdge(vNode);
       end;
+      // Handle Return Type from function
       if (fListOfTypes[l].fContainedObject.Methods[x].MethodKind = mkFunction) or
          (fListOfTypes[l].fContainedObject.Methods[x].MethodKind = mkClassFunction) or
          (fListOfTypes[l].fContainedObject.Methods[x].MethodKind = mkSafeFunction) then

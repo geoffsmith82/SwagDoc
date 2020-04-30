@@ -255,6 +255,8 @@ type
     procedure AddInterfaceVar(const pName:string; pTypeInfo: TUnitTypeDefinition);
     procedure AddImplementationUnit(const pFilename: string); virtual;
     procedure AddImplementationConstant(const pName: string; const pValue: string);
+    procedure AddUnitMethod(pMethod: TUnitMethod);
+    function LookupUnitMethodByName(const pMethodName: string): TUnitMethod;
     procedure AddType(pTypeInfo: TUnitTypeDefinition);
     function RemoveInterfaceUnit(const pFilename: string): Boolean; virtual;
     function RemoveImplementationUnit(const pFilename: string): Boolean; virtual;
@@ -402,6 +404,31 @@ begin
     fTypeDefinitions.Add(pTypeInfo);
 end;
 
+procedure TDelphiUnit.AddUnitMethod(pMethod: TUnitMethod);
+begin
+  if fUnitMethods.Count > 0 then
+  begin
+    if not Assigned(LookupUnitMethodByName(pMethod.Name)) then
+      fUnitMethods.Add(pMethod);
+  end
+  else
+    fUnitMethods.Add(pMethod);
+end;
+
+function TDelphiUnit.LookupUnitMethodByName(const pMethodName: string): TUnitMethod;
+var
+  i : Integer;
+begin
+  Result := nil;
+  for i := 0 to fUnitMethods.Count - 1 do
+  begin
+    if fUnitMethods[i].Name = pMethodName then
+    begin
+      Result := fUnitMethods[i];
+      Exit;
+    end;
+  end;
+end;
 constructor TDelphiUnit.Create;
 begin
   fInterfaceUses := TStringList.Create;
@@ -410,6 +437,7 @@ begin
   fImplementationConstant := TStringList.Create;
   fImplementationUses := TStringList.Create;
   fTypeDefinitions := TObjectList<TUnitTypeDefinition>.Create(false);
+  fUnitMethods := TObjectList<TUnitMethod>.Create(false);
 end;
 
 destructor TDelphiUnit.Destroy;
@@ -599,11 +627,26 @@ begin
     end;
 
     vUnitFileList.Add(GenerateInterfaceVar);
+    vUnitFileList.Add('');
+    vUnitFileList.Add('{ Global Functions }');
+    vUnitFileList.Add('');
+    for vIndex := 0 to fUnitMethods.Count - 1 do
+    begin
+      vUnitFileList.Add(fUnitMethods[vIndex].GenerateInterface(nil));
+    end;
 
     vUnitFileList.Add(GenerateImplementationSectionStart);
     vUnitFileList.Add(GenerateImplementationUses);
     vUnitFileList.Add('');
     GenerateImplementationConstants;
+
+    vUnitFileList.Add('');
+    vUnitFileList.Add('{ Global Functions }');
+    vUnitFileList.Add('');
+    for vIndex := 0 to fUnitMethods.Count - 1 do
+    begin
+      vUnitFileList.Add(fUnitMethods[vIndex].GenerateImplementation(nil));
+    end;
     for vIndex := 0 to fTypeDefinitions.Count - 1 do
     begin
       for vMethod in fTypeDefinitions[vIndex].GetMethods do
@@ -682,6 +725,7 @@ begin
   fAttributes := TStringList.Create;
   fFields := TObjectList<TUnitFieldDefinition>.Create;
   fMethods := TObjectList<TUnitMethod>.Create;
+  fProperties := TObjectList<TUnitPropertyDefinition>.Create;
   fTypeKind := tkClass;
   fForwardDeclare := False;
 end;
@@ -690,6 +734,7 @@ destructor TUnitTypeDefinition.Destroy;
 begin
   FreeAndNil(fAttributes);
   FreeAndNil(fFields);
+  FreeAndNil(fProperties);
   FreeAndNil(fMethods);
   inherited;
 end;

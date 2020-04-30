@@ -747,9 +747,11 @@ end;
 function TUnitTypeDefinition.GenerateForwardInterface: string;
 begin
   if fTypeKind = tkClass then
-    Result := '  ' + TypeName + ' : class;'
+    Result := '  ' + TypeName + ' = class;'
+  else if fTypeKind = tkRecord then
+    raise Exception.Create('Records can not be forward declared')
   else if fTypeKind = tkInterface then
-    Result := '  ' + TypeName + ' : interface;'
+    Result := '  ' + TypeName + ' = interface;'
   else
     Result := '  ' + TypeName + 'xxxx';
 end;
@@ -775,6 +777,10 @@ begin
         vInterfaceList.Add('  ' + TypeName + ' = class(' + TypeInherited + ')')
       else
         vInterfaceList.Add('  ' + TypeName + ' = class');
+    end
+    else if fTypeKind = tkRecord then
+    begin
+      vInterfaceList.Add('  ' + TypeName + ' = record');
     end
     else if fTypeKind = tkInterface then
     begin

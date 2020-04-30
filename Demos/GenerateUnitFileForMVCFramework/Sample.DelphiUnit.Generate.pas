@@ -79,6 +79,35 @@ type
     property ParamType: TUnitTypeDefinition read fType write fType;
   end;
 
+  TUnitPropertyDefinition = class
+  strict private
+    fFieldName: string;
+    fFieldType: string;
+    fVisibility: TMemberVisibility;
+    fAttributes: TStringList;
+    fDescription: string;
+    FPropWrite: string;
+    FPropRead: string;
+    fParams: TObjectList<TUnitParameter>;
+  public
+    constructor Create;
+    destructor Destroy; override;
+
+    procedure AddAttribute(const pAttribute: string);
+
+    function GenerateInterface(pOnType: TUnitTypeDefinition): string;
+    function IsSimpleType: Boolean;
+
+    procedure AddParameter(pParam: TUnitParameter);
+
+    property PropertyRead: string read FPropRead write fPropRead;
+    property PropertyWrite: string read FPropWrite write FPropWrite;
+    property PropertyName: string read fFieldName write fFieldName;
+    property PropertyType: string read fFieldType write fFieldType;
+    property Visibility: TMemberVisibility read fVisibility write fVisibility;
+    property Description: string read fDescription write fDescription;
+  end;
+
   TUnitMethod = class
   strict private
     fAttributes: TStringList;
@@ -137,6 +166,7 @@ type
     fForwardDeclare: Boolean;
     fGuid : TGUID;
     fFields: TObjectList<TUnitFieldDefinition>;
+    fProperties : TObjectList<TUnitPropertyDefinition>;
     fMethods: TObjectList<TUnitMethod>;
   protected
     fCurrentVisibility: TMemberVisibility;
@@ -151,6 +181,7 @@ type
     function GenerateInterface: string;
     function GenerateForwardInterface: string;
 
+    function LookupPropertyByName(const pTypeName: string): TUnitPropertyDefinition;
     property Guid: TGUID read fGuid write fGuid;
     property TypeName: string read fTypeName write fTypeName;
     property TypeKind: TTypeKind read fTypeKind write fTypeKind;
@@ -158,6 +189,7 @@ type
     property ForwardDeclare: Boolean read fForwardDeclare write fForwardDeclare;
     property Fields: TObjectList<TUnitFieldDefinition> read fFields;
     property Methods: TObjectList<TUnitMethod> read fMethods;
+    property Properties: TObjectList<TUnitPropertyDefinition> read fProperties;
   end;
 
   TDelphiObjectNode = class
@@ -722,6 +754,9 @@ begin
     begin
       vInterfaceList.Add(TrimRight(fMethods[vFieldIndex].GenerateInterface));
       vInterfaceList.Add('');
+    for vFieldIndex := 0 to fProperties.Count - 1 do
+    begin
+      vInterfaceList.Add(TrimRight(fProperties[vFieldIndex].GenerateInterface(Self)));
     end;
 
     vInterfaceList.Add('  end;');
@@ -1237,6 +1272,67 @@ end;
 function TDelphiObjectNodeComparer.Compare(const Left, Right: TDelphiObjectNode): Integer;
 begin
   Result := Right.FParents.Count - Left.FParents.Count;
+end;
+
+{ TUnitPropertyDefinition }
+
+procedure TUnitPropertyDefinition.AddAttribute(const pAttribute: string);
+begin
+  fAttributes.Add(pAttribute);
+end;
+
+procedure TUnitPropertyDefinition.AddParameter(pParam: TUnitParameter);
+begin
+  fParams.Add(pParam);
+end;
+
+constructor TUnitPropertyDefinition.Create;
+begin
+  fAttributes := TStringList.Create;
+  fParams := TObjectList<TUnitParameter>.Create;
+end;
+
+destructor TUnitPropertyDefinition.Destroy;
+begin
+  FreeAndNil(fAttributes);
+  FreeAndNil(fParams);
+  inherited;
+end;
+
+
+
+
+function TUnitPropertyDefinition.GenerateInterface(pOnType: TUnitTypeDefinition): string;
+var
+  vVisibility : string;
+  i: Integer;
+  paramStr: string;
+begin
+  if (pOnType.TypeKind = tkClass) and  (pOnType.fCurrentVisibility <> Visibility) then
+  begin
+    vVisibility := '  ' + MemberVisibilityToString(Visibility) + System.sLineBreak;
+    pOnType.fCurrentVisibility := Visibility;
+  end;
+
+  for i := 0 to fParams.Count - 1 do
+  begin
+    if i > 0 then
+      paramStr := paramStr + ', ';
+    paramStr := fparams[i].ParamName + ': ' + fParams[i].ParamType.TypeName;
+  end;
+  if paramStr.Length > 0 then
+    paramStr := '[' + paramStr + ']';
+  Result := vVisibility + '    property ' + DelphiVarName(PropertyName) + paramStr + ':' + PropertyType;
+  if PropertyRead.Length > 0 then
+    Result := Result + ' read ' + PropertyRead;
+  if PropertyWrite.Length > 0 then
+    Result := Result + ' write ' + PropertyWrite;
+  Result := Result + ';';
+end;
+
+function TUnitPropertyDefinition.IsSimpleType: Boolean;
+begin
+  Result := MatchText(PropertyType, ['String', 'Boolean', 'Integer', 'LongInt', 'Int64', 'Single', 'Double', 'Float32', 'Float64']);
 end;
 
 end.

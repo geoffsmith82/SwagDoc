@@ -43,6 +43,7 @@ type
   strict private
     fFieldName: string;
     fFieldType: string;
+    fVisibility: TMemberVisibility;
     fAttributes: TStringList;
     fDescription: string;
   public
@@ -51,11 +52,12 @@ type
 
     procedure AddAttribute(const pAttribute: string);
 
-    function GenerateInterface: string;
+    function GenerateInterface(pOnType: TUnitTypeDefinition): string;
     function IsSimpleType: Boolean;
 
     property FieldName: string read fFieldName write fFieldName;
     property FieldType: string read fFieldType write fFieldType;
+    property Visibility: TMemberVisibility read fVisibility write fVisibility;
     property Description: string read fDescription write fDescription;
   end;
 
@@ -239,8 +241,19 @@ uses
   System.IOUtils
   ;
 
+function MemberVisibilityToString(const pVisibility: TMemberVisibility): string;
+begin
+  case pVisibility of
+    mvPrivate: Result := 'private';
+    mvProtected: Result := 'protected';
+    mvPublic: Result := 'public';
+    mvPublished: Result := 'published';
+  end;
+end;
+
 function SafeDescription(const pDescription: string): string;
 begin
+  { TODO : Needs more work to make description safe }
   Result := QuotedStr(Trim(pDescription)).Replace(#13#10,'').Replace(#13,'').Replace(#10,'');
 end;
 
@@ -742,7 +755,7 @@ begin
   fAttributes.Add(pAttribute);
 end;
 
-function TUnitFieldDefinition.GenerateInterface: string;
+function TUnitFieldDefinition.GenerateInterface(pOnType: TUnitTypeDefinition): string;
 var
   vAttributeIndex: Integer;
   vInterfaceList: TStringList;
@@ -750,6 +763,12 @@ var
 begin
   vInterfaceList := TStringList.Create;
   try
+    if (pOnType.TypeKind = tkClass) and  (pOnType.fCurrentVisibility <> Visibility) then
+    begin
+      pOnType.fCurrentVisibility := Visibility;
+      vInterfaceList.Add('  ' + MemberVisibilityToString(Visibility));
+    end;
+
     vType := fFieldType;
     for vAttributeIndex := 0 to fAttributes.Count - 1 do
     begin
@@ -850,6 +869,8 @@ begin
       end;
 
       vParamAttributeString := Trim(vParamAttributeString) + ' ';
+      if(vParamAttributeString = ' ') then
+        vParamAttributeString := '';
     end;
 
     vParamName := DelphiVarName(vParam.ParamName);

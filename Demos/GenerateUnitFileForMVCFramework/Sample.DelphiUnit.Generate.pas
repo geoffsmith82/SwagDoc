@@ -87,10 +87,12 @@ type
     fName: string;
     fIsStatic: Boolean;
     fIsClassMethod: Boolean;
+    fIsOverrideMethod: Boolean;
     fReturnType: TUnitTypeDefinition;
     fParams: TObjectList<TUnitParameter>;
     fVars: TObjectList<TUnitParameter>;
     fContent: TStringList;
+    fParentType: TUnitTypeDefinition;
 
     procedure ParametersToDelphiString(var pParamString: string; pIncludeAttributes: Boolean);
     function ParametersToDelphiSignature: string;
@@ -108,7 +110,7 @@ type
     procedure AddAttribute(const pAttribute: string);
 
     function GetParameters: TArray<TUnitParameter>;
-    function GenerateInterface: string;
+    function GenerateInterface(pOnType: TUnitTypeDefinition): string;
     function GenerateImplementation(pOnType: TUnitTypeDefinition): string;
     function Signature: string;
 
@@ -119,9 +121,11 @@ type
     property IsConstructor: Boolean read GetIsConstructor;
     property IsDestructor: Boolean read GetIsDestructor;
     property IsClassMethod: Boolean read fIsClassMethod write fIsClassMethod;
+    property IsOverrideMethod: Boolean read fIsOverrideMethod write fIsOverrideMethod;
     // Static: No 'Self' parameter
     property IsStatic: Boolean read fIsStatic write fIsStatic;
     property ReturnType: TUnitTypeDefinition read fReturnType write fReturnType;
+    property ParentType: TUnitTypeDefinition read fParentType write fParentType;
   end;
 
   TUnitTypeDefinition = class
@@ -134,6 +138,8 @@ type
     fGuid : TGUID;
     fFields: TObjectList<TUnitFieldDefinition>;
     fMethods: TObjectList<TUnitMethod>;
+  protected
+    fCurrentVisibility: TMemberVisibility;
   public
     constructor Create;
     destructor Destroy; override;
@@ -917,9 +923,9 @@ end;
 
 function TUnitMethod.Signature: string;
 var
-  vHasReturn : Boolean;
+  hasReturn : Boolean;
 begin
-  Result := MethodKindToDelphiString(vHasReturn) + Name;
+  Result := MethodKindToDelphiString(hasReturn) + Name;
   Result := Result + ParametersToDelphiSignature;
   Result := Result.ToLower;  // Delphi is case insensitive
 end;
@@ -984,7 +990,7 @@ begin
     MethodLocalVarsToDelphiString(vFunctionList);
 
     vFunctionList.Add('begin');
-    vFunctionList.Add(Content.Text);
+    vFunctionList.AddStrings(Content);
     vFunctionList.Add('end;');
 
     Result := vFunctionList.Text;
@@ -993,25 +999,44 @@ begin
   end;
 end;
 
-function TUnitMethod.GenerateInterface: string;
+function TUnitMethod.GenerateInterface(pOnType: TUnitTypeDefinition): string;
 var
   vProcTypeString: string;
   vHasReturn: Boolean;
   vParamString: string;
   vAttributeString: string;
+  vVisibility : string;
+  vLeftPadding : string;
 begin
   vHasReturn := False;
   vProcTypeString := MethodKindToDelphiString(vHasReturn);
 
+  vLeftPadding := '    ';
+  if not Assigned(pOnType) then
+    vLeftPadding := '  ';
+
   ParametersToDelphiString(vParamString, True);
 
   if vHasReturn then
-    Result := '    ' + vProcTypeString + ' ' + fName + vParamString + ': ' + ReturnType.TypeName + ';'
+    Result := vLeftPadding + vProcTypeString + ' ' + fName + vParamString + ': ' + ReturnType.TypeName + ';'
   else
-    Result := '    ' + vProcTypeString + ' ' + fName + vParamString + ';';
+    Result := vLeftPadding + vProcTypeString + ' ' + fName + vParamString + ';';
+
+  if IsOverrideMethod then
+  begin
+    if (Assigned(fParentType) and (fParentType.TypeKind <> tkInterface)) or not Assigned(fParentType) then
+      Result := Result + ' override;';
+  end;
 
   vAttributeString := fAttributes.Text;
-  Result := vAttributeString + Result;
+
+  if Assigned(pOnType) and (pOnType.TypeKind = tkClass) and (pOnType.fCurrentVisibility <> Visibility) then
+  begin
+    vVisibility := '  ' + MemberVisibilityToString(Visibility) + System.sLineBreak;
+    pOnType.fCurrentVisibility := Visibility;
+  end;
+
+  Result := vVisibility  + vAttributeString + Result;
 end;
 
 function TUnitMethod.GetIsConstructor: Boolean;

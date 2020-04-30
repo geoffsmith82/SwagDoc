@@ -40,6 +40,7 @@ type
   TSwagDefinition = class(TObject)
   private
     fName: string;
+    fRef: string;
     fJsonSchema: TJsonObject;
     procedure SetName(const pValue: string);
     procedure SetJsonSchema(const pValue: TJsonObject); overload;
@@ -60,6 +61,8 @@ type
     ///  * https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md#schemaObject
     /// </summary>
     property JsonSchema: TJsonObject read GetJsonSchema write SetJsonSchema;
+
+    property Ref: string read fRef write fRef;
   end;
 
 implementation

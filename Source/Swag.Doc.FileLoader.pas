@@ -53,6 +53,7 @@ uses
   Swag.Doc.Tags,
   Swag.Doc.SecurityDefinition,
   Swag.Doc.Definition,
+  Swag.Doc.Path.Operation.Response,
   Swag.Doc.Path.Operation.RequestParameter;
 
 
@@ -90,6 +91,8 @@ var
   vJsonProduces: TJSONArray;
   vJsonConsumes: TJSONArray;
   vJsonDefinitions: TJSONObject;
+  vJsonResponses: TJSONObject;
+  vResponse : TSwagResponse;
   vDefinition: TSwagDefinition;
   vJsonParameters: TJSONObject;
   vParameter: TSwagRequestParameter;
@@ -178,8 +181,20 @@ begin
         vDefinition := TSwagDefinition.Create;
         vDefinition.Name := (vJsonDefinitions.Pairs[vIndex] as TJSONPair).JsonString.Value;
         vDefinition.JsonSchema := ((vJsonDefinitions.Pairs[vIndex] as TJSONPair).JsonValue.Clone as TJSONObject);
+        vDefinition.Ref := '#/definitions/' + (vJsonDefinitions.Pairs[vIndex] as TJSONPair).JsonString.Value;
         fSwagDoc.Definitions.Add(vDefinition);
       end;
+
+    vJsonResponses := (vSwaggerJson as TJSONObject).Values[c_SwagResponses] as TJSONObject;
+    if Assigned(vJsonResponses) then
+      for vIndex := 0 to vJsonResponses.Count - 1 do
+      begin
+        vResponse := TSwagResponse.Create;
+        vResponse.Load((vJsonResponses.Pairs[vIndex] as TJSONPair));
+        vResponse.Ref := '#/responses/' + vJsonResponses.Pairs[vIndex].JsonString.Value;
+        fSwagDoc.Responses.Add(vResponse);
+      end;
+
 
     vJsonParameters := (vSwaggerJson as TJSONObject).Values[c_SwagParameters] as TJSONObject;
     if Assigned(vJsonParameters) then

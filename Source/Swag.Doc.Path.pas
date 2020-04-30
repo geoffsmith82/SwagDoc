@@ -270,7 +270,7 @@ begin
   begin
     vResponse := TSwagResponse.Create;
     vResponse.StatusCode := pJsonResponse.Pairs[vIndex].JsonString.Value;
-    vResponse.Load(pJsonResponse.Pairs[vIndex].JsonValue as TJSONObject);
+    vResponse.Load(pJsonResponse.Pairs[vIndex] as TJSONPair);
     pOperation.Responses.Add(vResponse.StatusCode, vResponse);
   end;
 end;

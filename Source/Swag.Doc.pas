@@ -35,6 +35,7 @@ uses
   Swag.Doc.SecurityDefinition,
   Swag.Doc.Path,
   Swag.Doc.Path.Operation.RequestParameter,
+  Swag.Doc.Path.Operation.Response,
   Swag.Doc.Definition;
 
 type
@@ -55,6 +56,7 @@ type
     fSchemes: TSwagTransferProtocolSchemes;
     fPaths: TObjectList<TSwagPath>;
     fDefinitions: TObjectList<TSwagDefinition>;
+    fResponses : TObjectList<TSwagResponse>;
     fSecurityDefinitions: TObjectList<TSwagSecurityDefinition>;
     fExternalDocs: TSwagExternalDocs;
     fSwaggerJson: TJSONValue;
@@ -70,6 +72,7 @@ type
     function GenerateProducesJsonArray: TJSONArray;
     function GeneratePathsJsonObject: TJSONObject;
     function GenerateDefinitionsJsonObject: TJSONObject;
+    function GenerateResponsesJsonObject: TJSONObject;
     function GenerateParametersJsonObject: TJSONObject;
 
     function GenerateMimeTypesJsonArray(pMimeTypesList: TList<TSwagMimeType>): TJSONArray;
@@ -135,6 +138,8 @@ type
     /// </summary>
     property Paths: TObjectList<TSwagPath> read fPaths;
 
+    property Responses: TObjectList<TSwagResponse> read fResponses;
+
     /// <summary>
     /// An object to hold data types produced and consumed by operations.
     /// </summary>
@@ -166,6 +171,7 @@ const
   c_SwagProduces = 'produces';
   c_SwagPaths = 'paths';
   c_SwagDefinitions = 'definitions';
+  c_SwagResponses = 'responses';
   c_SwagExternalDocs = 'externalDocs';
   c_SwagExternalDocsDescription = 'description';
   c_SwagExternalDocsUrl = 'url';
@@ -193,6 +199,7 @@ begin
   fProduces := TList<string>.Create;
   fPaths := TObjectList<TSwagPath>.Create;
   fDefinitions := TObjectList<TSwagDefinition>.Create;
+  fResponses := TObjectList<TSwagResponse>.Create;
   fExternalDocs := TSwagExternalDocs.Create;
   fParameters := TObjectList<TSwagRequestParameter>.Create;
 end;
@@ -202,6 +209,7 @@ begin
   FreeAndNil(fConsumes);
   FreeAndNil(fProduces);
   FreeAndNil(fDefinitions);
+  FreeAndNil(fResponses);
   FreeAndNil(fPaths);
   FreeAndNil(fInfo);
   FreeAndNil(fTags);
@@ -259,6 +267,15 @@ begin
   Result := TJsonObject.Create;
   for vIndex := 0 to fDefinitions.Count -1 do
     Result.AddPair(fDefinitions.Items[vIndex].Name, fDefinitions.Items[vIndex].JsonSchema);
+end;
+
+function TSwagDoc.GenerateResponsesJsonObject: TJSONObject;
+var
+  vIndex: integer;
+begin
+  Result := TJsonObject.Create;
+  for vIndex := 0 to fResponses.Count -1 do
+    Result.AddPair(fResponses.Items[vIndex].Name, fResponses.Items[vIndex].GenerateJsonObject);
 end;
 
 function TSwagDoc.GenerateParametersJsonObject: TJSONObject;

@@ -45,6 +45,8 @@ type
   private
     fStatusCode: TSwagStatusCode;
     fSchema: TSwagDefinition;
+    fName: string;
+    fRef: string;
     fHeaders: TObjectList<TSwagHeaders>;
     fDescription: string;
     fExamples: TObjectDictionary<TSwagJsonExampleDescription, TJSONObject>;
@@ -55,7 +57,7 @@ type
     destructor Destroy; override;
 
     function GenerateJsonObject: TJSONObject;
-    procedure Load(pJson : TJSONObject);
+    procedure Load(pJsonPair: TJSONPair);
 
     /// <summary>
     /// Any HTTP status code can be used as the property name (one property per HTTP status code).
@@ -87,6 +89,9 @@ type
     /// An example list of the json response message.
     /// </summary>
     property Examples: TObjectDictionary<TSwagJsonExampleDescription, TJSONObject> read fExamples;
+
+    property Name: string read fName write fName;
+    property Ref: string read fRef write fRef;
   end;
 
 implementation
@@ -162,31 +167,40 @@ begin
   Result := vJsonObject;
 end;
 
-procedure TSwagResponse.Load(pJson: TJSONObject);
+procedure TSwagResponse.Load(pJsonPair: TJSONPair);
 var
   vJSONHeaders: TJSONObject;
   vIndex: Integer;
   vHeader: TSwagHeaders;
+  vJson: TJSONObject;
 begin
-  if not Assigned(pJson) then
+  if not Assigned(pJsonPair) then
     Exit;
-  if Assigned(pJson.Values[c_SwagResponseDescription]) then
-    fDescription := pJson.Values[c_SwagResponseDescription].Value;
+  vJson := pJsonPair.JsonValue as TJSONObject;
+  fName := pJsonPair.JsonString.Value;
 
-  if Assigned(pJson.Values[c_SwagResponseHeaders]) then
+  if not Assigned(vJson) then
+    Exit;
+  if Assigned(vJson.Values[c_SwagResponseDescription]) then
+    fDescription := vJson.Values[c_SwagResponseDescription].Value;
+
+  if Assigned(vJson.Values[c_SwagResponseHeaders]) then
   begin
-    vJSONHeaders := pJson.Values[c_SwagResponseHeaders] as TJSONObject;
+    vJSONHeaders := vJson.Values[c_SwagResponseHeaders] as TJSONObject;
     for vIndex := 0 to vJSONHeaders.Count - 1 do
     begin
       vHeader := TSwagHeaders.Create;
       vHeader.Load(vJSONHeaders.Pairs[vIndex].JsonValue as TJSONObject);
       vHeader.Name := vJSONHeaders.Pairs[vIndex].JsonString.Value;
-      fHeaders.Add(vheader);
+      fHeaders.Add(vHeader);
     end;
   end;
 
-  if Assigned(pJson.Values[c_SwagResponseSchema]) then
-    fSchema.JsonSchema := pJson.Values[c_SwagResponseSchema].Clone as TJSONObject
+  if Assigned(vJson.Values['$ref']) then
+    Ref := vJson.Values['$ref'].Value;
+
+  if Assigned(vJson.Values[c_SwagResponseSchema]) then
+    fSchema.JsonSchema := vJson.Values[c_SwagResponseSchema].Clone as TJSONObject
 end;
 
 end.

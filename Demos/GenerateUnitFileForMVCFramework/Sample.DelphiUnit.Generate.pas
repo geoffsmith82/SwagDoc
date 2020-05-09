@@ -46,6 +46,7 @@ type
     fVisibility: TMemberVisibility;
     fAttributes: TStringList;
     fDescription: string;
+    fVisibility: TMemberVisibility;
   public
     constructor Create;
     destructor Destroy; override;
@@ -181,6 +182,8 @@ type
     function GenerateInterface: string;
     function GenerateForwardInterface: string;
 
+    procedure SortFields;
+    procedure SortMethods;
     function GetMethodsByName(const pMethodName: string): TArray<TUnitMethod>;
     function LookupPropertyByName(const pTypeName: string): TUnitPropertyDefinition;
 
@@ -265,6 +268,8 @@ type
     function RemoveInterfaceUnit(const pFilename: string): Boolean; virtual;
     function RemoveImplementationUnit(const pFilename: string): Boolean; virtual;
     procedure SortTypeDefinitions;
+
+    procedure ClearTypes;
 
     property UnitFile: string read fUnitName write fUnitName;
     property UnitHasResourceFile: Boolean read fUnitHasResourceFile write fUnitHasResourceFile;
@@ -396,6 +401,11 @@ begin
   end
   else
     fTypeDefinitions.Add(pTypeInfo);
+end;
+
+procedure TDelphiUnit.ClearTypes;
+begin
+  fTypeDefinitions.Clear;
 end;
 
 procedure TDelphiUnit.AddUnitMethod(pMethod: TUnitMethod);
@@ -827,6 +837,9 @@ begin
       end;
     end;
 
+    SortFields;
+    SortMethods;
+
     for vFieldIndex := 0 to fFields.Count - 1 do
     begin
       vInterfaceList.Add(TrimRight(fFields[vFieldIndex].GenerateInterface(Self)));
@@ -859,6 +872,34 @@ begin
   begin
     Result[vMethodIndex] := fMethods[vMethodIndex];
   end;
+end;
+
+procedure TUnitTypeDefinition.SortFields;
+begin
+  fFields.Sort(TComparer<TUnitFieldDefinition>.Construct(
+  function(const vTypeA, vTypeB: TUnitFieldDefinition): Integer
+                        begin
+                          if vTypeA.Visibility = vTypeB.Visibility then
+                            Result := CompareText(vTypeA.FieldName, vTypeB.FieldName)
+                          else if vTypeA.Visibility > vTypeB.Visibility then
+                            Result := -1
+                          else
+                            Result := 1;
+                        end));
+end;
+
+procedure TUnitTypeDefinition.SortMethods;
+begin
+  fMethods.Sort(TComparer<TUnitMethod>.Construct(
+  function(const vTypeA, vTypeB: TUnitMethod): Integer
+                        begin
+                          if vTypeA.Visibility = vTypeB.Visibility then
+                            Result := CompareText(vTypeA.Name, vTypeB.Name)
+                          else if vTypeA.Visibility > vTypeB.Visibility then
+                            Result := -1
+                          else
+                            Result := 1;
+                        end));
 end;
 
 function TUnitTypeDefinition.GetMethodsByName(const pMethodName: string): TArray<TUnitMethod>;

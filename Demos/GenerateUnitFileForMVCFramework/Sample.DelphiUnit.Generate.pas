@@ -298,7 +298,7 @@ end;
 function SafeDescription(const pDescription: string): string;
 begin
   { TODO : Needs more work to make description safe }
-  Result := QuotedStr(Trim(pDescription)).Replace(#13#10,'').Replace(#13,'').Replace(#10,'');
+  Result := QuotedStr(Trim(pDescription)).Replace(#13#10, '').Replace(#13, '').Replace(#10, '');
 end;
 
 function DelphiVarName(const pVarName: string):string;
@@ -640,13 +640,16 @@ begin
       end;
     end;
 
-    vUnitFileList.Add(GenerateInterfaceVar);
-    vUnitFileList.Add('');
-    vUnitFileList.Add('{ Global Functions }');
-    vUnitFileList.Add('');
-    for vIndex := 0 to fUnitMethods.Count - 1 do
+    if fUnitMethods.Count > 0 then
     begin
-      vUnitFileList.Add(fUnitMethods[vIndex].GenerateInterface(nil));
+      vUnitFileList.Add(GenerateInterfaceVar);
+      vUnitFileList.Add('');
+      vUnitFileList.Add('{ Global Functions }');
+      vUnitFileList.Add('');
+      for vIndex := 0 to fUnitMethods.Count - 1 do
+      begin
+        vUnitFileList.Add(fUnitMethods[vIndex].GenerateInterface(nil));
+      end;
     end;
 
 
@@ -655,12 +658,15 @@ begin
     vUnitFileList.Add('');
     GenerateImplementationConstants;
 
-    vUnitFileList.Add('');
-    vUnitFileList.Add('{ Global Functions }');
-    vUnitFileList.Add('');
-    for vIndex := 0 to fUnitMethods.Count - 1 do
+    if fUnitMethods.Count > 0 then
     begin
-      vUnitFileList.Add(fUnitMethods[vIndex].GenerateImplementation(nil));
+      vUnitFileList.Add('');
+      vUnitFileList.Add('{ Global Functions }');
+      vUnitFileList.Add('');
+      for vIndex := 0 to fUnitMethods.Count - 1 do
+      begin
+        vUnitFileList.Add(fUnitMethods[vIndex].GenerateImplementation(nil));
+      end;
     end;
 
     for vIndex := 0 to fTypeDefinitions.Count - 1 do

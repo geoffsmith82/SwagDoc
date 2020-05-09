@@ -41,11 +41,15 @@ type
   private
     fName: string;
     fJsonSchema: TJsonObject;
+    fSchema: TJsonSchema;
     procedure SetName(const pValue: string);
     procedure SetJsonSchema(const pValue: TJsonObject);
     function GetJsonSchema: TJsonObject;
+    function GetSchema: TJsonSchema;
+    procedure SetSchema(const Value: TJsonSchema);
   public
     destructor Destroy; override;
+    constructor Create;
 
     function GenerateJsonRefDefinition: TJsonObject;
     /// <summary>
@@ -59,6 +63,7 @@ type
     ///  * https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md#schemaObject
     /// </summary>
     property JsonSchema: TJsonObject read GetJsonSchema write SetJsonSchema;
+    property Schema: TJsonSchema read GetSchema write SetSchema;
   end;
 
 implementation
@@ -68,6 +73,13 @@ uses
 
 { TSwagDefinition }
 
+constructor TSwagDefinition.Create;
+begin
+  inherited;
+  fJsonSchema := nil;
+  fSchema := nil;
+end;
+
 destructor TSwagDefinition.Destroy;
 begin
   FreeAndNil(fJsonSchema);
@@ -76,7 +88,15 @@ end;
 
 function TSwagDefinition.GetJsonSchema: TJsonObject;
 begin
-  Result := fJsonSchema;
+  if Assigned(Schema) then
+    Result := Schema.ToJson
+  else
+    Result := fJsonSchema;
+end;
+
+function TSwagDefinition.GetSchema: TJsonSchema;
+begin
+  Result := fSchema;
 end;
 
 procedure TSwagDefinition.SetJsonSchema(const pValue: TJsonObject);
@@ -88,6 +108,12 @@ end;
 procedure TSwagDefinition.SetName(const pValue: string);
 begin
   fName := pValue;
+end;
+
+procedure TSwagDefinition.SetSchema(const Value: TJsonSchema);
+begin
+  fSchema := Value;
+  fJsonSchema := nil;
 end;
 
 function TSwagDefinition.GenerateJsonRefDefinition: TJsonObject;

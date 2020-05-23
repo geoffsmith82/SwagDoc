@@ -46,7 +46,6 @@ type
     fVisibility: TMemberVisibility;
     fAttributes: TStringList;
     fDescription: string;
-    fVisibility: TMemberVisibility;
   public
     constructor Create;
     destructor Destroy; override;
@@ -1299,7 +1298,6 @@ begin
   Result := nil;
   for i := 0 to fListOfTypes.Count-1 do
   begin
-    OutputDebugString(PChar(fListOfTypes[i].FContainedObject.TypeName));
     if (CompareText(pTypeName,fListOfTypes[i].FContainedObject.TypeName)=0) then
     begin
       Result := fListOfTypes[i];

@@ -149,7 +149,7 @@ begin
   if (not fSchema.Name.IsEmpty) then
     vJsonObject.AddPair(c_SwagResponseSchema, fSchema.GenerateJsonRefDefinition)
   else if Assigned(fSchema.JsonSchema) then
-    vJsonObject.AddPair(c_SwagResponseSchema, fSchema.JsonSchema as TJSONObject);
+    vJsonObject.AddPair(c_SwagResponseSchema, fSchema.JsonSchema.Clone as TJSONObject);
 
   if (fExamples.Count > 0) then
     vJsonObject.AddPair(c_SwagResponseExamples, GenerateExamplesJsonObject);

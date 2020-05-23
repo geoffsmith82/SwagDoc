@@ -106,6 +106,7 @@ procedure TSwagDefinition.SetJsonSchema(const pValue: TJsonObject);
 begin
   fJsonSchema := pValue;
   fJsonSchema.Owned := False;
+  fSchema := TJsonSchema.Create;
 end;
 
 procedure TSwagDefinition.SetJsonSchema(const pName:string; pValue: TJsonSchema);
